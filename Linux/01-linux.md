@@ -5,6 +5,8 @@
 -   [Package Management](#package-management)
 -   [System Information](#system-information)
 -   [Networking](#networking)
+-   [SSH](#ssh)
+-   [Firewall](#firewall)
 -   [Processes](#processes)
 -   [Find & Grep](#find--grep)
 -   [Disk & Memory](#disk--memory)
@@ -14,8 +16,7 @@
 -   [Users](#users)
 -   [Groups](#groups)
 -   [Cron Jobs](#cron-jobs)
--   [SSH](#ssh)
--   [Firewall](#firewall)
+
 
 
 ------------------------------------------------------------------------
@@ -158,6 +159,65 @@ nano /etc/sysctl.conf
 ```
 sysctl -p
 ```
+
+------------------------------------------------------------------------
+
+## SSH
+
+``` bash
+ssh-keygen -t ed25519 -C "user"
+# Generates: 
+# id_ed25519      private key
+# id_ed25519.pub  public key
+
+# Creating .ppk to use with PuTTY or WinSCP
+# Use PuTTYgen:
+# Open PuTTYgen > Load > Change file filter to: All Files (*.*)
+# Select your id_ed25519 (private key) > Save private key
+
+nano ~/.ssh/authorized_keys
+# add public key to server
+
+ssh-copy-id -i ~/.ssh/id_ed25519.pub john@192.168.8.120
+# will create & add key on '192.168.8.120' /home/john/.ssh/authorized_keys
+# or
+cat ~/.ssh/id_ed25519.pub | ssh john@192.168.8.120 "sudo sh -c 'cat >> /root/.ssh/authorized_keys'" 
+# user john has to be a user on '192.168.8.120' with root access
+# john has passwordless sudo (NOPASSWD in /etc/sudoers)
+
+# Verify SSH configuration
+nano /etc/ssh/sshd_config
+# find
+PermitRootLogin prohibit-password
+PubkeyAuthentication yes
+# prohibit-password = key-based root login allowed, password login blocked (recommended)
+# if changes are made
+sudo systemctl reload sshd
+```
+
+------------------------------------------------------------------------
+
+## Firewall
+
+``` bash
+ufw allow 22/tcp
+```
+``` bash
+ufw allow 5432/tcp
+```
+``` bash
+ufw status numbered
+```
+``` bash
+ufw delete 3
+```
+``` bash
+ufw status verbose
+```
+``` bash
+journalctl -xe | grep ufw
+```
+
 
 ------------------------------------------------------------------------
 
@@ -836,62 +896,5 @@ chmod 0600 ~/.pgpass
 ```
 
 
-------------------------------------------------------------------------
-
-## SSH
-
-``` bash
-ssh-keygen -t ed25519 -C "user"
-# Generates: 
-# id_ed25519      private key
-# id_ed25519.pub  public key
-
-# Creating .ppk to use with PuTTY or WinSCP
-# Use PuTTYgen:
-# Open PuTTYgen > Load > Change file filter to: All Files (*.*)
-# Select your id_ed25519 (private key) > Save private key
-
-nano ~/.ssh/authorized_keys
-# add public key to server
-
-ssh-copy-id -i ~/.ssh/id_ed25519.pub john@192.168.8.120
-# will create & add key on '192.168.8.120' /home/john/.ssh/authorized_keys
-# or
-cat ~/.ssh/id_ed25519.pub | ssh john@192.168.8.120 "sudo sh -c 'cat >> /root/.ssh/authorized_keys'" 
-# user john has to be a user on '192.168.8.120' with root access
-# john has passwordless sudo (NOPASSWD in /etc/sudoers)
-
-# Verify SSH configuration
-nano /etc/ssh/sshd_config
-# find
-PermitRootLogin prohibit-password
-PubkeyAuthentication yes
-# prohibit-password = key-based root login allowed, password login blocked (recommended)
-# if changes are made
-sudo systemctl reload sshd
-```
-
-------------------------------------------------------------------------
-
-## Firewall
-
-``` bash
-ufw allow 22/tcp
-```
-``` bash
-ufw allow 5432/tcp
-```
-``` bash
-ufw status numbered
-```
-``` bash
-ufw delete 3
-```
-``` bash
-ufw status verbose
-```
-``` bash
-journalctl -xe | grep ufw
-```
 
 
