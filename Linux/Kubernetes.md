@@ -23,12 +23,13 @@ sed -i '/ swap / s/^/#/' /etc/fstab
 free -h
 ```
 
-Kernel modules
-
+add kernel modules
 ```bash
 modprobe overlay
 modprobe br_netfilter
 ```
+
+
 configuration file to start on bootup
 ```bash
 cat <<EOF | tee /etc/modules-load.d/k8s.conf

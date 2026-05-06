@@ -19,7 +19,7 @@
 
 
 
-------------------------------------------------------------------------
+<br>
 
 ## Package Management
 
@@ -34,7 +34,7 @@ dpkg --list
 snap list
 ```
 
-------------------------------------------------------------------------
+<br>
 
 ## System Information
 
@@ -47,19 +47,16 @@ cat /proc/cpuinfo
 cat /proc/meminfo
 ```
 
-------------------------------------------------------------------------
+<br>
 
 ## Networking
 
 Disable cloud-init networking
 ```bash
-nano /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+echo "network: {config: disabled}" | sudo tee /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
 ```
-```TOML
-network: {config: disabled}
-```
-Netplan config
 
+Netplan config
 ```bash
 nano /etc/netplan/50-cloud-init.yaml
 ```
@@ -151,6 +148,18 @@ dig -x host
 wget file
 wget -c file
 ```
+aria2 fast download
+
+```bash
+sudo apt install aria2
+```
+```bash
+aria2c -x 16 -s 16 https://link
+```
+```bash
+aria2c -i uris.txt
+```
+
 
 Disable IPv6
 ``` bash
@@ -160,12 +169,16 @@ nano /etc/sysctl.conf
 sysctl -p
 ```
 
-------------------------------------------------------------------------
+
+<br>
 
 ## SSH
 
-``` bash
+
+```bash
 ssh-keygen -t ed25519 -C "user"
+```
+```bash
 # Generates: 
 # id_ed25519      private key
 # id_ed25519.pub  public key
@@ -174,28 +187,52 @@ ssh-keygen -t ed25519 -C "user"
 # Use PuTTYgen:
 # Open PuTTYgen > Load > Change file filter to: All Files (*.*)
 # Select your id_ed25519 (private key) > Save private key
+```
 
+```bash
 nano ~/.ssh/authorized_keys
-# add public key to server
+```
 
+add public key to server
+
+```bash
 ssh-copy-id -i ~/.ssh/id_ed25519.pub john@192.168.8.120
-# will create & add key on '192.168.8.120' /home/john/.ssh/authorized_keys
-# or
+```
+
+will create & add key on '192.168.8.120' /home/john/.ssh/authorized_keys
+or
+
+```bash
 cat ~/.ssh/id_ed25519.pub | ssh john@192.168.8.120 "sudo sh -c 'cat >> /root/.ssh/authorized_keys'" 
+```
+
+```bash
 # user john has to be a user on '192.168.8.120' with root access
 # john has passwordless sudo (NOPASSWD in /etc/sudoers)
+```
 
-# Verify SSH configuration
+Verify SSH configuration
+
+```bash
 nano /etc/ssh/sshd_config
-# find
+```
+
+find
+
+```bash
 PermitRootLogin prohibit-password
 PubkeyAuthentication yes
-# prohibit-password = key-based root login allowed, password login blocked (recommended)
-# if changes are made
+```
+
+prohibit-password = key-based root login allowed, password login blocked (recommended)
+if changes are made
+
+```bash
 sudo systemctl reload sshd
 ```
 
-------------------------------------------------------------------------
+
+<br>
 
 ## Firewall
 
@@ -219,7 +256,7 @@ journalctl -xe | grep ufw
 ```
 
 
-------------------------------------------------------------------------
+<br>
 
 ## Processes
 
@@ -269,7 +306,7 @@ Lists all installed Snap packages
 snap list
 ```
 
-------------------------------------------------------------------------
+<br>
 
 ## Find & Grep
 
@@ -430,7 +467,7 @@ awk -F: '/keyword/ {print $1, $5}' file | sort | column -t
 ```
 
 
-------------------------------------------------------------------------
+<br>
 
 ## Disk & Memory
 
@@ -472,7 +509,7 @@ source ~/.bashrc
 alias dft='df -ahT --total'
 ```
 
-------------------------------------------------------------------------
+<br>
 
 ## Compression
 
@@ -555,7 +592,7 @@ tar -tzf backup.tar.gz
 tar -czpf backup.tar.gz /etc/
 ```
 
-------------------------------------------------------------------------
+<br>
 
 ## File Listing
 
@@ -576,7 +613,7 @@ ls -a
 
 
 
-------------------------------------------------------------------------
+<br>
 
 ## Systemctl
 
@@ -608,7 +645,7 @@ systemctl list-units --failed
 systemctl is-enabled nginx
 ```
 
-------------------------------------------------------------------------
+<br>
 
 ## Users
 
@@ -738,11 +775,17 @@ usermod -s /sbin/nologin username
 # for system service accounts (like www-data or mysql) 
 # that need to own files and run processes 
 # but should never be used by a human to log in.
+
+# Generate a Hashed password
+# Yescrypt
+mkpasswd -m yescrypt
+# SHA-512 
+openssl passwd -6 "yourpasswordhere"
 ```
 
 
 
-------------------------------------------------------------------------
+<br>
 
 ## Groups
 
@@ -787,7 +830,7 @@ groupadd -g 2000 dbadmin
 # for Matching GIDs across multiple servers.
 ```
 
-------------------------------------------------------------------------
+<br>
 
 ## Cron Jobs
 
