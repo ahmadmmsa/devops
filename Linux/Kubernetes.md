@@ -218,7 +218,6 @@ kubectl apply -f custom-resources.yaml
 ```bash
 kubeadm token create --print-join-command
 ```
->[!NOTE]
 >Copy returned command and run on worker node
 
 
@@ -234,7 +233,7 @@ to see exactly what will change compared to what's currently running
 kubectl diff -f . 
 ```
 
-<br><br>
+<br>
 
 ### Apply
 
@@ -255,7 +254,7 @@ Dry Run Check for syntax errors
 kubectl apply -f . --dry-run=client 
 ```
  
-<br><br>
+<br>
 
 ### Get
 
@@ -317,7 +316,7 @@ kubectl get pods -A -l app=my-web-app -o wide -w
 - Show IPs and Nodes (-o wide)
 - Keep the screen updated as things change (-w)
 
-<br><br>
+<br>
 
 ### Describe
 check if Pod is failing, crashing, or won't start
@@ -329,7 +328,7 @@ kubectl describe pod <pod-name>
 kubectl describe pod <pod-name> | grep -i Events -A 10
 ```
 
-<br><br>
+<br>
 
 ### Label
 Add label with role worker
@@ -341,7 +340,7 @@ Change label name
 kubectl label pods -l app=old-name app=my-project --overwrite
 ```
 
-<br><br>
+<br>
 
 
 ### Delete
@@ -404,17 +403,13 @@ kubectl delete pvc --all
 docker build -t my-app:1.0 .
 ```
 
-
 ```bash
 docker build --network host -t my-app/backend:latest .
 ```
 
-
 ```bash
-docker images | grep abrahamic-frontend
+docker images | grep my-app
 ```
-
-
 
 Remove all images
 ```bash
@@ -425,9 +420,6 @@ remove all containers
 ```bash
 docker rm $(docker ps -aq)
 ``` 
-
-
-
 
 
 
