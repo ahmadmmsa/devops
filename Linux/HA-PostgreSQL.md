@@ -321,18 +321,18 @@ EOF
 set patroni permission
 
 
->Give postgres ownership of the config directory
+> Give postgres ownership of the config directory
 
 ```bash
 sudo mkdir -p /etc/patroni
 sudo chown -R postgres:postgres /etc/patroni
 ```
->systemd unit file permission
+> systemd unit file permission
 ```bash
 sudo chown root:root /etc/systemd/system/patroni.service
 sudo chmod 644 /etc/systemd/system/patroni.service
 ```
->Reload systemd
+> Reload systemd
 ```bash
 sudo systemctl daemon-reload
 ```
