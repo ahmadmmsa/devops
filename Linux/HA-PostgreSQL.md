@@ -234,6 +234,7 @@ bootstrap:
 
       pg_hba:
         - local all all trust
+        - host all all 127.0.0.1/32 trust
         - host replication replicator 192.168.8.0/24 md5
         - host all all 192.168.8.0/24 md5
 
@@ -352,7 +353,7 @@ sudo systemctl enable --now etcd chrony haproxy keepalived
 ```bash
 sudo -u postgres patroni /etc/patroni/patroni.yml
 ```
-> Wait until node1 becomes leader..
+> open another terminal Wait until node 1 becomes leader then enable
 
 ```bash
 sudo systemctl enable --now patroni
