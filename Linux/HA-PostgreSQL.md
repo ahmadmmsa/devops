@@ -35,7 +35,7 @@ echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pu
 sudo apt update
 ```
 ```bash
-sudo apt install -y postgresql-18 postgresql-contrib postgresql-18-pgvector patroni etcd etcd-client python3-etcd3 python3-psycopg2 haproxy keepalived jq chrony
+sudo apt install -y postgresql-18 postgresql-contrib postgresql-18-pgvector etcd-server etcd-client patroni python3-etcd3 python3-psycopg2 haproxy keepalived jq chrony
 ```
 
 <br>
@@ -78,7 +78,7 @@ sudo tee -a /etc/hosts <<EOF
 192.168.8.201  node1
 192.168.8.202  node2
 192.168.8.203  node3
-192.168.8.200 pg-vip  # The Virtual IP
+192.168.8.200 pg-vip
 EOF
 ```
 
@@ -126,18 +126,6 @@ ETCD_ADVERTISE_CLIENT_URLS="http://192.168.8.201:2379"
 EOF
 ```
 
-check
-```bash
-ls -la /var/lib/etcd
-```
-create if doesnt exist
-
-```bash
-sudo mkdir -p /var/lib/etcd
-sudo chown etcd:etcd /var/lib/etcd
-sudo chmod 700 /var/lib/etcd
-```
-
 <br>
 
 ## HAProxy & Keepalived Configuration
@@ -176,6 +164,10 @@ EOF
 
 ```bash
 sudo tee /etc/keepalived/keepalived.conf <<EOF
+global_defs {
+    enable_script_security
+    script_user root
+}
 vrrp_script check_haproxy {
     script "killall -0 haproxy"
     interval 2
@@ -183,7 +175,7 @@ vrrp_script check_haproxy {
 }
 vrrp_instance VI_1 {
     state MASTER          # BACKUP on nodes 2 & 3
-    interface eth0        # Adjust to your interface name (check with: ip link)
+    interface enp1s0        # Adjust to your interface name (check with: ip link)
     virtual_router_id 51
     priority 100          # 90 on node2, 80 on node3
     advert_int 1
@@ -395,7 +387,7 @@ etcdctl endpoint health --cluster
 Check VRRP (Keepalived):
 
 ```bash
-ip addr show eth0 
+ip addr show enp1s0 
 ```
 > vIP 192.168.8.200 should appear on the Leader.
 
