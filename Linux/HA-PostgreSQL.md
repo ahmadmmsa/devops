@@ -424,6 +424,11 @@ odoo 19 setup
 ```bash
 patronictl -c /etc/patroni/patroni.yml exec node1 -- psql -c "CREATE USER odoo WITH PASSWORD 'your_strong_password';"
 patronictl -c /etc/patroni/patroni.yml exec node1 -- psql -c "CREATE DATABASE odoo OWNER odoo;"
+
+sudo -u postgres psql -c "CREATE USER odoo WITH PASSWORD 'your_strong_password';"
+sudo -u postgres psql -c "CREATE DATABASE odoo OWNER odoo;"
+sudo -u postgres psql -c "ALTER ROLE odoo CREATEDB;"
+
 ```
 
  odoo.conf
