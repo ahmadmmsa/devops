@@ -1000,7 +1000,10 @@ while IFS= read -r file; do
     [[ -f "$file" ]] || continue
     move_file "$file"
 done
-CREATE_AUTO_SCRIPT && chmod +x ~/.local/bin/dl-sort.sh
+CREATE_AUTO_SCRIPT
+```
+```bash
+chmod +x ~/.local/bin/dl-sort.sh
 ```
 
 ```bash
@@ -1016,5 +1019,9 @@ RestartSec=5
 
 [Install]
 WantedBy=default.target
-EOF && systemctl --user daemon-reload && systemctl --user enable --now dl-sort.service
+EOF
+```
+
+```bash
+systemctl --user daemon-reload && systemctl --user enable --now dl-sort.service
 ```
