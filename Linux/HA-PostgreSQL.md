@@ -371,6 +371,29 @@ sudo systemctl start patroni
 sudo systemctl enable --now etcd chrony haproxy keepalived patroni
 ```
 
+<br>
+
+## WatchDog
+
+```bash
+# load the softdog kernel module
+modprobe softdog
+
+# make it load on boot
+echo "softdog" >> /etc/modules-load.d/softdog.conf
+
+# verify it appeared
+ls -la /dev/watchdog
+```
+
+add to patroni.yml
+```yaml
+watchdog:
+  mode: required  # or 'automatic'
+  device: /dev/watchdog
+  safety_margin: 5
+```
+
 
 <br>
 
@@ -428,6 +451,9 @@ patronictl -c /etc/patroni/patroni.yml exec node1 -- psql -c "CREATE DATABASE od
 sudo -u postgres psql -c "CREATE USER odoo WITH PASSWORD 'your_strong_password';"
 sudo -u postgres psql -c "CREATE DATABASE odoo OWNER odoo;"
 sudo -u postgres psql -c "ALTER ROLE odoo CREATEDB;"
+
+ALTER USER myuser WITH SUPERUSER;
+ALTER DATABASE name OWNER TO new_owner;
 
 ```
 

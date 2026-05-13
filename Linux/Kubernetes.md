@@ -497,26 +497,59 @@ spec:
 
 ```
 
+PresistentVolume
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: odoo-filestore-pv
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteMany        # important for multiple Odoo pods
+  nfs:
+    server: 192.168.8.10
+    path: /srv/odoo/filestore
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: odoo-filestore-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+securityContext:
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001      
+```
+
+
 <br>
 
 ### Setting up a local Registry VM
 
 on 192.168.8.113
 
-```
+```bash
 apt update
 apt install docker -y
 ```
 
-```
+```bash
 ufw allow 5000/tcp
 ```
 
-```
+```bash
 docker run -d -p 5000:5000 --restart=always --name registry registry:2
 ```
 
-```
+```bash
 cd /home/user/myapp
 docker build -t localhost:5000/my-react-app:v1 .
 
@@ -526,19 +559,19 @@ docker push localhost:5000/my-react-app:v1
 
 Run these steps on BOTH 192.168.8.111 and 192.168.8.112:
 
-```
+```bash
 sudo nano /etc/docker/daemon.json
 ```
 
 
-```
+```bash
 {
   "insecure-registries" : ["192.168.8.113:5000"]
 }
 ```
 
 
-```
+```bash
 sudo systemctl restart docker
 ```
 
@@ -548,15 +581,15 @@ sudo systemctl restart docker
 
 Kube-1 (Control Plane) pulls it
 
-```
+```bash
 kubectl create deployment my-app --image=192.168.8.113:5000/my-react-app:v1
 ```
 
-```
+```bash
 kubectl expose deployment frontend --port=80 --target-port=80 --type=NodePort
 ```
 
-```
+```bash
 kubectl get svc frontend
 ```
 http://192.168.8.111:3XXXX

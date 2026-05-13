@@ -16,7 +16,8 @@
 -   [Users](#users)
 -   [Groups](#groups)
 -   [Cron Jobs](#cron-jobs)
-
+---------
+-   [My-Stuff](#my-stuff)
 
 
 <br>
@@ -940,4 +941,80 @@ chmod 0600 ~/.pgpass
 
 
 
+<br><br>
 
+
+# My Stuff
+
+Automate stuff using inotify-tools
+
+```bash
+sudo apt update && sudo apt install inotify-tools
+```
+
+```bash
+mkdir -p ~/.local/bin && cat <<'CREATE_AUTO_SCRIPT' > ~/.local/bin/dl-sort.sh
+#!/bin/bash
+set -euo pipefail
+
+DOWNLOADS="$HOME/Downloads"
+RULES=(
+  "pdf txt yaml yml json md doc docx xls xlsx ppt pptx odt ods odp csv log conf ini|$DOWNLOADS/doc"
+  "jpg jpeg png gif bmp webp tif tiff svg heic avif ico|$DOWNLOADS/img"
+  "mp4 mkv avi mov webm flv mpg mpeg m4v|$DOWNLOADS/media/video"
+  "aac wav flac m4a wma mp3 ogg opus alac|$DOWNLOADS/media/audio"
+  "iso img qcow2 vmdk vdi|$DOWNLOADS/kvm/images"
+)
+log() { logger -t "dl-sort" "$*"; }
+move_file() {
+    local src="$1"
+    local name="${src##*/}"
+    [[ "$name" == .* ]] && return 0
+    local ext="${name##*.}"
+    local ext_lc="${ext,,}"
+    [[ "$name" == "$ext" ]] && return 0
+    case "$ext_lc" in
+        part|crdownload|tmp|download|partial) return 0 ;;
+    esac
+    local rule exts dest
+    for rule in "${RULES[@]}"; do
+        IFS='|' read -r exts dest <<< "$rule"
+        for e in $exts; do
+            if [[ "$ext_lc" == "${e,,}" ]]; then
+                mkdir -p "$dest"
+                local target="$dest/$name"
+                if [[ -e "$target" ]]; then
+                    local base="${name%.*}" ts
+                    ts=$(date +%s)
+                    target="$dest/${base}_${ts}.${ext}"
+                fi
+                mv -n -- "$src" "$target" && log "moved $name -> $dest" || log "WARN: could not move $name"
+                return 0
+            fi
+        done
+    done
+}
+mkdir -p "$DOWNLOADS"
+inotifywait -m -e close_write,moved_to --format '%w%f' "$DOWNLOADS" 2>/dev/null |
+while IFS= read -r file; do
+    [[ -f "$file" ]] || continue
+    move_file "$file"
+done
+CREATE_AUTO_SCRIPT && chmod +x ~/.local/bin/dl-sort.sh
+```
+
+```bash
+mkdir -p ~/.config/systemd/user && tee ~/.config/systemd/user/dl-sort.service > /dev/null <<'EOF'
+[Unit]
+Description=Downloads folder sorter
+After=default.target
+
+[Service]
+ExecStart=%h/.local/bin/dl-sort.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF && systemctl --user daemon-reload && systemctl --user enable --now dl-sort.service
+```
