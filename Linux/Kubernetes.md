@@ -650,8 +650,7 @@ After installing MetalLB:
 - Patch the ingress service to LoadBalancer:
 
 ```bash
-kubectl patch svc ingress-nginx-controller -n ingress-nginx \
-  -p '{"spec": {"type": "LoadBalancer"}}'
+kubectl patch svc ingress-nginx-controller -n ingress-nginx -p '{"spec": {"type": "LoadBalancer"}}'
 ```
 MetalLB assigns an external IP behaves similar to cloud
 

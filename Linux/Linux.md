@@ -19,7 +19,6 @@
 ---------
 -   [My-Stuff](#my-stuff)
 
-
 <br>
 
 ## Package Management
@@ -120,12 +119,13 @@ ip neigh
 ip neigh flush all
 
 # Port & Socket Inspection (ss)
+ss -tulnp
 # t → TCP
 # u → UDP
 # l → listening
 # n → numeric (no DNS)
 # p → process info
-ss -tulnp
+
 # Filter specific port
 ss -tulnp | grep 5432
 # Check DB server exposure
@@ -169,7 +169,6 @@ nano /etc/sysctl.conf
 ```
 sysctl -p
 ```
-
 
 <br>
 
@@ -232,7 +231,6 @@ if changes are made
 sudo systemctl reload sshd
 ```
 
-
 <br>
 
 ## Firewall
@@ -256,7 +254,6 @@ ufw status verbose
 journalctl -xe | grep ufw
 ```
 
-
 <br>
 
 ## Processes
@@ -264,10 +261,16 @@ journalctl -xe | grep ufw
 ```bash
 # minimalist view
 ps -He
-# view a detailed "tree" of all running processes on your system.
+# view a detailed "tree" of all running processes
 ps -axjf
 # Show all running processes (detailed, user-friendly)
 ps -aux
+# Find process by name
+ps aux | grep nginx
+# Show top memory consumers
+ps aux --sort=-%mem | head
+# Show top CPU consumers
+ps -eo pid,ppid,cmd,%cpu --sort=-%cpu | head
 # Show all processes (full structured format)
 ps -ef
 ps -e
@@ -281,16 +284,8 @@ ps -f
 ps -l
 # Custom output columns
 ps -eo pid,ppid,cmd,%mem,%cpu
-# Find process by name
-ps aux | grep nginx
 # Show process tree hierarchy
 ps -ef --forest
-# Show top memory consumers
-ps aux --sort=-%mem | head
-# Show only PID + command
-ps -eo pid,cmd
-# Show top CPU consumers
-ps -eo pid,ppid,cmd,%cpu --sort=-%cpu | head
 ```
 
 Lists all packages installed via Debian package manager (APT/dpkg)
@@ -467,7 +462,6 @@ grep error log.txt | cut -d: -f1,5 | sort | column -t -s:
 awk -F: '/keyword/ {print $1, $5}' file | sort | column -t
 ```
 
-
 <br>
 
 ## Disk & Memory
@@ -475,7 +469,6 @@ awk -F: '/keyword/ {print $1, $5}' file | sort | column -t
 system's disk space usage
 ``` bash
 df -ahT --total
-
 # -a All
 # -h Human readable
 # -T List mounted and types
@@ -484,7 +477,6 @@ df -ahT --total
 
 ```bash
 du -sh /var/log/*
-
 # -a count all file and directories
 # -s summarize
 # -h human readable
@@ -597,7 +589,6 @@ tar -czpf backup.tar.gz /etc/
 
 ## File Listing
 
-
 ``` bash
 ls -a
 # -a  All inc hidden
@@ -611,8 +602,6 @@ ls -a
 # -i  print index number
 # -lt sort by ctime
 ```
-
-
 
 <br>
 
@@ -683,7 +672,6 @@ grant sudo rights
 sudo usermod -aG sudo username
 # user can run docker without sudo
 sudo usermod -aG docker username
-
 # -a (Append)
 # -G (Groups)
 ```
@@ -693,7 +681,7 @@ visudo
 ```
 
 ```bash
-username ALL=(ALL:ALL) NOPASSWD: ALL
+username ALL=(ALL:ALL) NOPASSWD:ALL
 username ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
 username ALL=(ALL:ALL) NOPASSWD: /usr/bin/apt, /usr/bin/systemctl
 ```
@@ -946,12 +934,75 @@ chmod 0600 ~/.pgpass
 
 # My Stuff
 
+Fast download
+```bash
+alias dltor='aria2c -x 16 -s 16 --seed-time=0 --dir=$HOME/Downloads $HOME/Downloads/downloadlist.txt && rm $HOME/Downloads/downloadlist.txt'
+```
+
 Automate stuff using inotify-tools
 
 ```bash
-sudo apt update && sudo apt install inotify-tools
+sudo apt update && sudo apt install aria2 inotify-tools
 ```
 
+```bash
+which inotifywait
+# outputs /usr/bin/inotifywait
+```
+Download torrents using aria2
+```bash
+mkdir -p ~/.local/bin && cat <<'CREATE_AUTO_SCRIPT' > ~/.local/bin/dl-torrent.sh
+#!/bin/bash
+set -euo pipefail
+
+DOWNLOADS="$HOME/Downloads"
+
+log() { logger -t "dl-torrent" "$*"; }
+
+inotifywait -m -e moved_to --format '%w%f' "$DOWNLOADS" 2>/dev/null |
+while IFS= read -r file; do
+    [[ -f "$file" ]] || continue
+
+    name="${file##*/}"
+    ext="${name##*.}"
+    [[ "${ext,,}" == "torrent" ]] || continue
+
+    x-terminal-emulator -e bash -c '
+        aria2c -x 16 -s 16 --seed-time=0 --dir="$1/movies" "$2" &&
+        rm -f "$2" &&
+        logger -t dl-torrent "aria2c finished and cleaned $3" ||
+        logger -t dl-torrent "WARN: aria2c failed for $3"
+
+        # Keep the terminal open if you want to see the output.
+        # Remove this line if you want the terminal to close immediately.
+        exec bash
+    ' _ "$DOWNLOADS" "$file" "$name" &
+done
+CREATE_AUTO_SCRIPT
+chmod +x ~/.local/bin/dl-torrent.sh
+```
+
+```bash
+mkdir -p ~/.config/systemd/user && tee ~/.config/systemd/user/dl-torrent.service > /dev/null <<'EOF'
+[Unit]
+Description=Downloads Torrents using aria2
+After=default.target
+
+[Service]
+ExecStart=%h/.local/bin/dl-torrent.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload && systemctl --user enable --now dl-torrent.service
+```
+
+
+
+
+sort downloads
 ```bash
 mkdir -p ~/.local/bin && cat <<'CREATE_AUTO_SCRIPT' > ~/.local/bin/dl-sort.sh
 #!/bin/bash
@@ -959,50 +1010,46 @@ set -euo pipefail
 
 DOWNLOADS="$HOME/Downloads"
 RULES=(
-  "pdf txt yaml yml json md doc docx xls xlsx ppt pptx odt ods odp csv log conf ini|$DOWNLOADS/doc"
-  "jpg jpeg png gif bmp webp tif tiff svg heic avif ico|$DOWNLOADS/img"
-  "mp4 mkv avi mov webm flv mpg mpeg m4v|$DOWNLOADS/media/video"
-  "aac wav flac m4a wma mp3 ogg opus alac|$DOWNLOADS/media/audio"
-  "iso img qcow2 vmdk vdi|$DOWNLOADS/kvm/images"
+  "pdf txt yaml yml json md doc docx xls xlsx ppt pptx odt ods odp csv log conf ini|$DOWNLOADS/docs"
+  "jpg jpeg png gif bmp webp tif tiff svg heic avif ico|$DOWNLOADS/images"
+  "mp4 mkv avi mov webm flv mpg mpeg m4v|$DOWNLOADS/movies"
+  "aac wav flac m4a wma mp3 ogg opus alac|$DOWNLOADS/audio"
 )
 log() { logger -t "dl-sort" "$*"; }
 move_file() {
     local src="$1"
+    [[ -f "$src" ]] || return 0
     local name="${src##*/}"
+
     [[ "$name" == .* ]] && return 0
     local ext="${name##*.}"
     local ext_lc="${ext,,}"
+
     [[ "$name" == "$ext" ]] && return 0
     case "$ext_lc" in
         part|crdownload|tmp|download|partial) return 0 ;;
     esac
-    local rule exts dest
+
+    local rule exts dest target
     for rule in "${RULES[@]}"; do
         IFS='|' read -r exts dest <<< "$rule"
         for e in $exts; do
             if [[ "$ext_lc" == "${e,,}" ]]; then
                 mkdir -p "$dest"
-                local target="$dest/$name"
-                if [[ -e "$target" ]]; then
-                    local base="${name%.*}" ts
-                    ts=$(date +%s)
-                    target="$dest/${base}_${ts}.${ext}"
-                fi
-                mv -n -- "$src" "$target" && log "moved $name -> $dest" || log "WARN: could not move $name"
+                target="$dest/$name"
+                mv -- "$src" "$target" && log "moved $name -> $dest" || log "WARN: could not move $name"
                 return 0
             fi
         done
     done
 }
 mkdir -p "$DOWNLOADS"
-inotifywait -m -e close_write,moved_to --format '%w%f' "$DOWNLOADS" 2>/dev/null |
+inotifywait -m -e moved_to --format '%w%f' "$DOWNLOADS" 2>/dev/null |
 while IFS= read -r file; do
     [[ -f "$file" ]] || continue
     move_file "$file"
 done
-CREATE_AUTO_SCRIPT
-```
-```bash
+CREATE_AUTO_SCRIPT 
 chmod +x ~/.local/bin/dl-sort.sh
 ```
 
@@ -1020,8 +1067,5 @@ RestartSec=5
 [Install]
 WantedBy=default.target
 EOF
-```
-
-```bash
 systemctl --user daemon-reload && systemctl --user enable --now dl-sort.service
 ```
