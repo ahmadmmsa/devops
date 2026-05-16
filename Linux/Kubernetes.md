@@ -224,8 +224,20 @@ cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 chown $(id -u):$(id -g) $HOME/.kube/config
 ```
  
-<br>
+ <br>
+
+## control plane Join command
+```bash
+kubeadm token create --print-join-command
+```
+>Copy returned command and run on worker node
+
+
+
+<br><br>
  
+ ----
+
 Install CNI 
 
 if pods range is 192.168.0.0/16
@@ -274,14 +286,44 @@ kubectl apply -f custom-resources.yaml
 
 <br>
 
-## control plane Join command
+## Bad or Conflicting IP pool
+
+Create a new IP pool
+
 ```bash
-kubeadm token create --print-join-command
+cat <<EOF | kubectl apply -f -
+apiVersion: crd.projectcalico.org/v1
+kind: IPPool
+metadata:
+  name: correct-ipv4-ippool
+spec:
+  cidr: 10.244.0.0/16
+  ipipMode: Always
+  natOutgoing: true
+  disabled: false
+EOF
 ```
->Copy returned command and run on worker node
+Disable the bad pool (don't delete yet)
 
+```bash
+calicoctl patch ippool new-ipv4-ippool -p '{"spec":{"disabled":true}}'
+```
+Restart
+```bash
+kubectl rollout restart deployment odoo-deployment
+```
+verify
 
-<br>
+```bash
+kubectl get pods -o wide
+```
+
+delete the bad pool:
+```bash
+calicoctl delete ippool new-ipv4-ippool
+```
+
+<br><br>
 
 ## NFS
 
@@ -347,7 +389,7 @@ data:
     - name: default
       protocol: layer2
       addresses:
-      - 192.168.8.240-192.168.8.250
+      - 10.244.0.0.240-10.244.0.0.250
 ```
 apply the config:
 ```bash

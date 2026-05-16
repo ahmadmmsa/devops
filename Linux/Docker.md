@@ -40,6 +40,15 @@ sudo ss -tulpn
 sudo ss -tulpn | grep docker
 ```
 
+tag & push
+
+```bash
+docker tag app-name:latest 192.168.8.25:5000/app-name:latest
+```
+
+```bash
+docker push 192.168.8.25:5000/app-name:latest
+```
 
 <br><br>
 
