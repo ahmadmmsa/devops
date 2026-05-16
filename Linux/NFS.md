@@ -113,16 +113,41 @@ nano odoo-pvc.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: test-pvc
+  name: odoo-filestore-pvc
 spec:
   accessModes:
     - ReadWriteMany
   storageClassName: nfs-csi
   resources:
     requests:
-      storage: 10Gi
+      storage: 50Gi
 ```
 
 ```bash
 kubectl apply -f odoo-pvc.yaml
+```
+
+docker-compose.yaml
+
+```yaml
+services:
+  odoo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: odoo_app
+    restart: unless-stopped
+    ports:
+      - "8069:8069"   # main web UI
+      - "8071:8071"   # xmlrpc
+      - "8072:8072"   # longpolling (live chat / bus)
+
+    volumeMounts:
+     - name: filestore
+       mountPath: /var/lib/odoo
+
+    volumes:
+      - name: filestore
+        persistentVolumeClaim:
+         claimName: odoo-filestore-pvc  
 ```

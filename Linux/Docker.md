@@ -19,10 +19,81 @@ docker compose stop          # stop containers but don't remove them
 docker compose start         # start them back up after stop
 docker compose restart       # restart containers
 docker compose logs -f odoo  # follow logs
+
+# List running containers with ports
+docker ps
+
+# Show container name, image, status, and published ports
+docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+
+# Show container name and internal container IP address
+docker inspect -f '{{.Name}} -> {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q)
+
+# Show container name, image, IP address, and ports in one command
+docker ps -q | xargs -I {} docker inspect -f \
+'{{.Name}} | {{.Config.Image}} | IP={{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}} | Ports={{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{(index $conf 0).HostIp}}:{{(index $conf 0).HostPort}} {{end}}' {}
+
+# Show which host ports are listening
+sudo ss -tulpn
+
+# Show only Docker-related listening ports
+sudo ss -tulpn | grep docker
 ```
 
 
+<br><br>
 
+
+### Docker
+
+```bash
+docker build -t my-app:1.0 .
+```
+
+```bash
+docker build --network host -t my-app/backend:latest .
+```
+
+```bash
+docker images | grep my-app
+```
+
+Remove all images
+```bash
+docker rmi -f $(docker images -q)
+```
+
+remove all containers
+```bash
+docker rm $(docker ps -aq)
+``` 
+
+
+
+
+Start everything
+
+```bash
+docker compose up -d
+```
+
+Stop everything
+
+```bash
+docker compose down
+```
+
+Rebuild after code changes
+
+```bash
+docker compose up --build
+```
+
+View combined logs
+
+```bash
+docker compose logs -f
+```
 
 
 docker-compose.yml
