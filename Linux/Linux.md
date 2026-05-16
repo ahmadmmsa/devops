@@ -1005,9 +1005,8 @@ systemctl --user daemon-reload && systemctl --user enable --now dl-torrent.servi
 sort downloads
 ```bash
 mkdir -p ~/.local/bin && cat <<'CREATE_AUTO_SCRIPT' > ~/.local/bin/dl-sort.sh
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
-
 DOWNLOADS="$HOME/Downloads"
 RULES=(
   "pdf txt yaml yml json md doc docx xls xlsx ppt pptx odt ods odp csv log conf ini|$DOWNLOADS/docs"
@@ -1015,39 +1014,61 @@ RULES=(
   "mp4 mkv avi mov webm flv mpg mpeg m4v|$DOWNLOADS/movies"
   "aac wav flac m4a wma mp3 ogg opus alac|$DOWNLOADS/audio"
 )
-log() { logger -t "dl-sort" "$*"; }
+log() {
+  logger -t dl-sort "$*"
+}
 move_file() {
-    local src="$1"
-    [[ -f "$src" ]] || return 0
-    local name="${src##*/}"
-
-    [[ "$name" == .* ]] && return 0
-    local ext="${name##*.}"
-    local ext_lc="${ext,,}"
-
-    [[ "$name" == "$ext" ]] && return 0
-    case "$ext_lc" in
-        part|crdownload|tmp|download|partial) return 0 ;;
-    esac
-
-    local rule exts dest target
-    for rule in "${RULES[@]}"; do
-        IFS='|' read -r exts dest <<< "$rule"
-        for e in $exts; do
-            if [[ "$ext_lc" == "${e,,}" ]]; then
-                mkdir -p "$dest"
-                target="$dest/$name"
-                mv -- "$src" "$target" && log "moved $name -> $dest" || log "WARN: could not move $name"
-                return 0
-            fi
-        done
+  local src="$1"
+  [[ -f "$src" ]] || return 0
+  [[ -s "$src" ]] || return 0
+  local name="${src##*/}"
+  [[ "$name" == .* ]] && return 0
+  [[ "$name" != *.* ]] && return 0
+  local ext="${name##*.}"
+  local ext_lc="${ext,,}"
+  case "$ext_lc" in
+    part|crdownload|tmp|download|partial)
+      return 0
+      ;;
+  esac
+  local rule exts dest e target
+  for rule in "${RULES[@]}"; do
+    IFS='|' read -r exts dest <<< "$rule"
+    for e in $exts; do
+      if [[ "$ext_lc" == "${e,,}" ]]; then
+        mkdir -p "$dest"
+        target="$dest/$name"
+        if [[ -e "$target" ]]; then
+          local base="${name%.*}"
+          local suffix=".$ext"
+          local n=1
+          while [[ -e "$dest/${base}_$n$suffix" ]]; do
+            ((n++))
+          done
+          target="$dest/${base}_$n$suffix"
+        fi
+        if mv -- "$src" "$target"; then
+          log "Moved '$name' -> '$target'"
+        else
+          log "WARN: Failed to move '$name'"
+        fi
+        return 0
+      fi
     done
+  done
 }
 mkdir -p "$DOWNLOADS"
-inotifywait -m -e moved_to --format '%w%f' "$DOWNLOADS" 2>/dev/null |
+find "$DOWNLOADS" -maxdepth 1 -type f -print0 |
+while IFS= read -r -d '' file; do
+  move_file "$file"
+done
+inotifywait -m \
+  -e close_write \
+  -e moved_to \
+  --format '%w%f' \
+  "$DOWNLOADS" 2>/dev/null |
 while IFS= read -r file; do
-    [[ -f "$file" ]] || continue
-    move_file "$file"
+  move_file "$file"
 done
 CREATE_AUTO_SCRIPT 
 chmod +x ~/.local/bin/dl-sort.sh
