@@ -33,6 +33,7 @@ kubectl diff -f .
 ### Get
 
 ```bash
+kubectl get svc
 kubectl get all
 kubectl get pods
 kubectl get pods --show-labels
