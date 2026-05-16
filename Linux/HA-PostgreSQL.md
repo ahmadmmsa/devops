@@ -147,19 +147,18 @@ sudo chmod 700 /var/lib/postgresql/18/main
  
 ## Step 7 — Install etcd 3.5 from GitHub (all nodes)
 
-> **Why not apt?** Ubuntu 24.04's apt `etcd` package is v3.3 which has known Patroni compatibility issues. Install the official binary directly.
+> Ubuntu 24.04's apt `etcd` package is v3.3 which has Patroni compatibility issues. 
 
 ```bash
 ETCD_VER=v3.5.17
-
 curl -fsSL https://github.com/etcd-io/etcd/releases/download/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz \
   -o /tmp/etcd.tar.gz
-
 tar xzf /tmp/etcd.tar.gz -C /tmp/
 sudo mv /tmp/etcd-${ETCD_VER}-linux-amd64/etcd /usr/local/bin/
 sudo mv /tmp/etcd-${ETCD_VER}-linux-amd64/etcdctl /usr/local/bin/
 sudo chmod +x /usr/local/bin/etcd /usr/local/bin/etcdctl
-
+```
+```bash
 # Verify
 etcd --version
 etcdctl version
@@ -177,7 +176,7 @@ sudo chown -R etcd:etcd /var/lib/etcd
 
 > **Critical:** Each node gets its own config. Only `ETCD_NAME`, `ETCD_INITIAL_ADVERTISE_PEER_URLS`, and `ETCD_ADVERTISE_CLIENT_URLS` differ per node.
 
-# 
+
 ## Node 1
 
 ```bash
@@ -194,7 +193,7 @@ ETCD_INITIAL_CLUSTER_TOKEN="pg-etcd-cluster-01"
 EOF
 ```
 
-# 
+
 ## Node 2
 
 ```bash
@@ -211,7 +210,7 @@ ETCD_INITIAL_CLUSTER_TOKEN="pg-etcd-cluster-01"
 EOF
 ```
 
-# 
+
 ## Node 3
 
 ```bash
@@ -230,19 +229,17 @@ EOF
 
 > **Note:** `ETCD_INITIAL_CLUSTER_STATE="new"` is correct on all nodes for the **initial bootstrap**. If you ever need to re-join a node to an existing cluster, change that node's value to `"existing"`.
 
-# 
+
 ## etcd systemd service (all nodes)
 
 ```bash
 sudo mkdir -p /etc/etcd
-
 sudo tee /etc/systemd/system/etcd.service <<'EOF'
 [Unit]
 Description=etcd key-value store
 Documentation=https://github.com/etcd-io/etcd
 After=network-online.target
 Wants=network-online.target
-
 [Service]
 User=etcd
 Group=etcd
@@ -251,11 +248,9 @@ ExecStart=/usr/local/bin/etcd
 Restart=always
 RestartSec=5
 LimitNOFILE=40000
-
 [Install]
 WantedBy=multi-user.target
 EOF
-
 sudo systemctl daemon-reload
 ```
  <br> 
@@ -306,7 +301,6 @@ defaults
     timeout client 30m
     timeout server 30m
 
-# Primary — read/write connections
 listen postgres_primary
     bind *:5000
     option httpchk GET /primary
@@ -316,7 +310,6 @@ listen postgres_primary
     server node2 192.168.8.202:5432 check port 8008
     server node3 192.168.8.203:5432 check port 8008
 
-# Replicas — read-only connections
 listen postgres_replicas
     bind *:5001
     option httpchk GET /replica
@@ -326,7 +319,6 @@ listen postgres_replicas
     server node2 192.168.8.202:5432 check port 8008
     server node3 192.168.8.203:5432 check port 8008
 
-# Stats page
 listen stats
     bind *:7000
     mode http
@@ -335,7 +327,8 @@ listen stats
     stats refresh 5s
     stats show-node
 EOF
-
+```
+```bash
 sudo systemctl enable haproxy
 sudo systemctl restart haproxy
 sudo systemctl status haproxy
@@ -758,7 +751,6 @@ sudo tee /etc/systemd/system/patroni.service <<'EOF'
 Description=Patroni PostgreSQL HA
 After=network-online.target etcd.service
 Wants=network-online.target
-
 [Service]
 User=postgres
 Group=postgres
@@ -768,7 +760,6 @@ Restart=always
 RestartSec=5
 LimitNOFILE=65536
 TimeoutStopSec=60
-
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -847,7 +838,7 @@ sudo journalctl -u patroni -f
 ```bash
 patronictl -c /etc/patroni/patroni.yml list
 ```
-> Watch the logs until node1 is elected leader:
+> Watch the logs until node1 is elected leader
 
  <br> 
 
