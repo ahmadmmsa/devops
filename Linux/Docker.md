@@ -1,108 +1,109 @@
 
+# Docker
 
+## packages
 ```bash
 sudo apt install -y docker.io docker-compose-v2 docker-buildx
 ```
 
-
-## Docker Compose YML
-
+## Logs
 ```bash
-docker compose ps            # see what's running
-
-docker compose up -d --build   # first time (builds the image)
-docker compose up -d           # subsequent runs (detached)
-
-docker compose down          # stop and remove containers
-docker compose down -v       # same + deletes volumes (careful: wipes filestore)
-docker compose stop          # stop containers but don't remove them
-docker compose start         # start them back up after stop
-docker compose restart       # restart containers
+docker compose logs -f
 docker compose logs -f odoo  # follow logs
-
-# List running containers with ports
-docker ps
-
-# Show container name, image, status, and published ports
-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
-
-# Show container name and internal container IP address
-docker inspect -f '{{.Name}} -> {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q)
-
-# Show container name, image, IP address, and ports in one command
-docker ps -q | xargs -I {} docker inspect -f \
-'{{.Name}} | {{.Config.Image}} | IP={{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}} | Ports={{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{(index $conf 0).HostIp}}:{{(index $conf 0).HostPort}} {{end}}' {}
-
-# Show which host ports are listening
-sudo ss -tulpn
-
-# Show only Docker-related listening ports
-sudo ss -tulpn | grep docker
 ```
 
-tag & push
+## List
+```bash
+# List all images
+docker images
+docker images | grep my-app
+```
+```bash
+docker compose ps   # see what's running
+docker ps           # List running containers with ports
+docker ps -aq       # lists all container IDs (running & stopped)
+sudo ss -tulpn | grep docker   # Show Docker-related listening ports
+```
+show with filters
+```bash
+docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+```
+
+```bash
+docker ps -q | xargs -I {} docker inspect -f \
+'{{.Name}} | {{.Config.Image}} | IP={{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}} | Ports={{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{(index $conf 0).HostIp}}:{{(index $conf 0).HostPort}} {{end}}' {}
+```
+
+```bash
+docker inspect -f '{{.Name}} -> {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q)
+```
+
+<br>
+
+## Build
+
+```bash
+docker compose up -d --build   # first time (builds the image)
+```
+```bash
+docker build -t quran-api:latest -t quran-api:1.0.0 --no-cache .
+docker build --network host -t my-app/backend:latest .
+docker build -t my-app:1.0 .
+```
+
+tag & push to registry
 
 ```bash
 docker tag app-name:latest 192.168.8.25:5000/app-name:latest
 ```
-
 ```bash
 docker push 192.168.8.25:5000/app-name:latest
 ```
 
-<br><br>
+<br>
 
-
-### Docker
+## Run & Stop
 
 ```bash
-docker build -t my-app:1.0 .
+docker compose up -d           # subsequent runs (detached)
+docker compose down            # stop and remove containers
+docker compose down -v         # same + deletes volumes (careful: wipes filestore)
+
+docker compose stop          # stop containers but don't remove them
+docker compose start         # start them back up after stop
+docker compose restart       # restart containers
+```
+```bash
+docker run --env-file .env -p 8000:8000 --name quran-api quran-api:latest
+docker run -d --env-file .env -p 8000:8000 --name quran-api quran-api:latest  # run -d detached
 ```
 
+<br>
+
+## Remove
+
 ```bash
-docker build --network host -t my-app/backend:latest .
+docker rmi my-app:latest            # Remove an image
+docker rm --force $(docker ps -aq)  # force remove all containers
+docker rmi -f $(docker images -q)   # Remove all images
+docker rm $(docker ps -aq)          # remove all containers
+docker rm -f container-id           # force remove a running container
+
+docker image prune                # Remove all unused images
+docker system prune -a --volumes  # remove anonymous volumes
+docker system prune -a            # removes all stopped containers
 ```
 
+## other stuff
 ```bash
-docker images | grep my-app
+# portable image file
+# Save image to a file
+docker save -o quran-api.tar quran-api:latest
+# Load it back on another machine
+docker load -i quran-api.tar
 ```
 
-Remove all images
-```bash
-docker rmi -f $(docker images -q)
-```
-
-remove all containers
-```bash
-docker rm $(docker ps -aq)
-``` 
-
-
-
-
-Start everything
-
-```bash
-docker compose up -d
-```
-
-Stop everything
-
-```bash
-docker compose down
-```
-
-Rebuild after code changes
-
-```bash
-docker compose up --build
-```
-
-View combined logs
-
-```bash
-docker compose logs -f
-```
+<br>
 
 
 docker-compose.yml
@@ -117,7 +118,6 @@ services:
   odoo:
     image: ..
 ```
-
 
 local filestore
 ```yaml
@@ -167,7 +167,7 @@ services:
 
 or
 
-```bash
+```yml
 services:
   odoo:
     build:
@@ -197,42 +197,3 @@ volumes:
 
 
 
-Build
-```bash
-docker build -t quran-api:latest -t quran-api:1.0.0 --no-cache .
-```
-Run
-
-```bash
-docker run --env-file .env -p 8000:8000 --name quran-api quran-api:latest
-# run -d detached
-docker run -d --env-file .env -p 8000:8000 --name quran-api quran-api:latest
-```
-other stuff
-```bash
-# List all images
-docker images
-# Remove an image
-docker rmi quran-api:latest
-# Remove all unused images
-docker image prune
-
-
-# lists all container IDs(both running and stopped)
-docker ps -aq
-# force remove a running container
-docker rm -f <the-container-id>
-# force remove all containers
-docker rm --force $(docker ps -aq)
-
-# remove anonymous volumes
-docker system prune -a --volumes
-# removes all stopped containers
-docker system prune -a
-
-# portable image file
-# Save image to a file
-docker save -o quran-api.tar quran-api:latest
-# Load it back on another machine
-docker load -i quran-api.tar
-```

@@ -1,4 +1,4 @@
-# Production HA PostgreSQL 18 on Ubuntu 24.04
+# HA PostgreSQL 18 on Ubuntu 24.04
 
 <br> 
  
@@ -40,12 +40,12 @@ All steps run on **all 3 nodes** unless a node label is shown.
 
 ```bash
 # Confirm Ubuntu version
-lsb_release -a
 # Must show: Ubuntu 24.04
+lsb_release -a
 
 # Note your network interface name — you will need it for Keepalived
+# Common names: enp1s0, ens3, eth0
 ip link show
-# Common names: enp1s0, ens3, eth0 — note yours down
 ```
  <br> 
  
@@ -59,8 +59,6 @@ sudo tee -a /etc/hosts <<'EOF'
 192.168.8.200  pg-vip
 EOF
 ```
-
- <br> 
  
 ## Step 2 — Firewall (all nodes)
 
@@ -75,7 +73,6 @@ sudo ufw allow proto vrrp # Keepalived VRRP
 sudo ufw allow 22/tcp     # SSH — ensure you don't lock yourself out
 sudo ufw enable
 ```
- <br> 
  
 ## Step 3 — Kernel Parameters (all nodes)
 

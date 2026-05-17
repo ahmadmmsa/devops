@@ -238,50 +238,106 @@ kubeadm token create --print-join-command
  
  ----
 
-Install CNI 
+## Install CNI 
 
-if pods range is 192.168.0.0/16
-```bash
-kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/calico.yaml
-```
-
-if custom pods range 10.10.0.0/16 
 
 ```bash
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.1/manifests/tigera-operator.yaml
-```
-```bash
-wget https://raw.githubusercontent.com/projectcalico/calico/v3.29.1/manifests/custom-resources.yaml
-```
-```bash
-nano custom-resources.yaml
-```
-change cidr: 192.168.0.0/16 to 10.10.0.0/16
-
-```YAML
-apiVersion: operator.tigera.io/v1
-kind: Installation
-metadata:
-  name: default
-spec:
-  calicoNetwork:
-    ipPools:
-    - name: default-ipv4-ippool
-      blockSize: 26
-      cidr: 192.168.0.0/16
-      encapsulation: VXLANCrossSubnet
-      natOutgoing: Enabled
-      nodeSelector: all()
----
-apiVersion: operator.tigera.io/v1
-kind: APIServer
-metadata:
-  name: default
-spec: {}
+# Prevent NetworkManager from managing Calico interfaces (run on ALL nodes)
+sudo mkdir -p /etc/NetworkManager/conf.d/
+cat <<EOF | sudo tee /etc/NetworkManager/conf.d/calico.conf
+[keyfile]
+unmanaged-devices=interface-name:cali*;interface-name:tunl*;interface-name:vxlan.calico;interface-name:vxlan-v6.calico;interface-name:wireguard.cali;interface-name:wg-v6.cali
+EOF
+sudo systemctl reload NetworkManager 2>/dev/null || true
 ```
 
+```bash
+# Calico's default IPAM pool is 192.168.0.0/16
+# If your LAN uses that range, change it to e.g. 10.244.0.0/16
+sudo kubeadm init \
+  --kubernetes-version=1.30.0 \
+  --pod-network-cidr=192.168.0.0/16 \
+  --node-name=$(hostname -s)
+
+# Set up kubeconfig
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
-kubectl apply -f custom-resources.yaml
+
+```bash
+# Install the Tigera Operator (v3.30 for K8s 1.30)
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.30.5/manifests/tigera-operator.yaml
+
+# Verify the operator is running
+kubectl get pods -n tigera-operator
+
+# Download the custom resources manifest
+curl -O https://raw.githubusercontent.com/projectcalico/calico/v3.30.5/manifests/custom-resources.yaml
+```
+
+```bash
+sed -i 's|192.168.0.0/16|10.244.0.0/16|g' custom-resources.yaml
+```
+
+```bash
+kubectl create -f custom-resources.yaml
+```
+
+```bash
+# Watch all Calico pods come up (takes 2-3 minutes)
+watch kubectl get pods -n calico-system
+
+# Expected output when healthy:
+# calico-kube-controllers-xxx   1/1   Running
+# calico-node-xxx               1/1   Running   (one per node)
+# calico-typha-xxx              1/1   Running
+
+# Check node readiness
+kubectl get nodes
+
+# Verify the tigera-operator itself
+kubectl get pods -n tigera-operator
+```
+
+```bash
+# Install calicoctl matching your Calico version
+curl -L https://github.com/projectcalico/calico/releases/download/v3.30.5/calicoctl-linux-amd64 \
+  -o /usr/local/bin/calicoctl
+chmod +x /usr/local/bin/calicoctl
+
+# Verify version matches cluster
+calicoctl version
+
+# Check node status
+calicoctl node status
+
+# List IP pools
+calicoctl get ippool -o wide
+```
+
+Verify
+
+```bash
+# Nodes should be Ready
+kubectl get nodes -o wide
+
+# All system pods running
+kubectl get pods -A
+
+# Confirm Calico version in use
+kubectl get pods -n calico-system -l k8s-app=calico-node \
+  -o jsonpath='{.items[0].spec.containers[0].image}'
+
+# Test pod-to-pod networking
+kubectl run test1 --image=busybox --rm -it --restart=Never -- \
+  wget -qO- http://kubernetes.default.svc.cluster.local
+
+# Check CNI config was written correctly
+cat /etc/cni/net.d/10-calico.conflist
+
+# Check BGP peer status
+calicoctl node status
 ```
 
 <br>
@@ -585,7 +641,6 @@ docker run -d --name registry -p 5000:5000 --restart unless-stopped registry:2
 
 
 Run on All k8s:
-
 
 ```bash
 sudo mkdir -p /etc/containerd/certs.d/192.168.8.25:5000
