@@ -1064,6 +1064,20 @@ CREATE_NEW_VM_SCRIPT
 
 
 
+## Change img size
 
+```bash
+qemu-img resize /var/lib/libvirt/images/your_vm_name.qcow2 +20G
+```
 
+in the vm run to expand partition
+```bash
+sudo growpart /dev/vda 1
+```
+```bash
+sudo resize2fs /dev/vda1
+```
 
+```bash
+df -h /
+```

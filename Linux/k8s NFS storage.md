@@ -1,12 +1,12 @@
 
+# Kubernetes NFS server Storage
 
-
-only on control plane
+only on k8s control plane
 ```bash
 sudo apt install -y nfs-kernel-server nfs-common
 ```
 
-install on all kubernetes nodes
+on all k8s nodes
 
 ```bash
 sudo apt install -y nfs-common
@@ -14,7 +14,7 @@ sudo apt install -y nfs-common
 
 <br>
 
------
+
 
 ```bash
 sudo mkdir -p /srv/odoo/filestore
@@ -31,6 +31,11 @@ nano /etc/exports
 ```
 
 ```bash
+# allows non-root ports to connect
+/srv/odoo/filestore 192.168.8.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)
+```
+
+```bash
 sudo exportfs -rav
 sudo systemctl restart nfs-kernel-server
 sudo systemctl enable nfs-kernel-server
@@ -44,7 +49,7 @@ showmount -e 192.168.8.100
 
 <br>
 
------
+
 
 
 Install NFS CSI Driver
@@ -59,13 +64,10 @@ kubectl get pods -n kube-system | grep nfs
 
 <br>
 
------
 
-Create StorageClass
 
-```bash
-nano nfs-storageclass.yaml
-```
+## dynamic provisioner nfs-csi
+
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -82,10 +84,6 @@ mountOptions:
   - nfsvers=4.1
 ```
 
-apply
-```bash
-kubectl apply -f nfs-storageclass.yaml
-```
 
 Verify
 ```bash
@@ -99,15 +97,11 @@ kubectl get storageclass
 kubectl patch storageclass nfs-csi -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 ```
 
-<br>
 
------
+odoo example
 
-Create a PVC
 
-```bash
-nano odoo-pvc.yaml
-```
+docker-compose.yaml
 
 ```yaml
 apiVersion: v1
@@ -121,15 +115,7 @@ spec:
   resources:
     requests:
       storage: 50Gi
-```
-
-```bash
-kubectl apply -f odoo-pvc.yaml
-```
-
-docker-compose.yaml
-
-```yaml
+---      
 services:
   odoo:
     build:
@@ -151,3 +137,49 @@ services:
         persistentVolumeClaim:
          claimName: odoo-filestore-pvc  
 ```
+
+<br>
+<br>
+
+## Static Provisioning
+
+```bash
+sudo mkdir -p /srv/odoo/filestore/odoo-19-data
+sudo chown -R 1001:1001 /srv/odoo/filestore/odoo-19-data
+```
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: odoo-filestore-static-pv
+spec:
+  capacity:
+    storage: 40Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "" # Leave blank to prevent auto-provisioning triggers
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: odoo-filestore-static-unique-id
+    volumeAttributes:
+      server: 192.168.8.100 # Your kube1 IP
+      share: /srv/odoo/filestore/odoo-19-data # Your custom path
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: odoo-filestore-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "" # Must match the blank string in the PV
+  resources:
+    requests:
+      storage: 40Gi
+  volumeName: odoo-filestore-static-pv # Forces binding to your specific PV above
+```
+
+<br>
+
