@@ -592,7 +592,6 @@ bootstrap:
       pg_hba:
         - local   all         all                              trust
         - host    all         all         127.0.0.1/32         trust
-        # Required: Patroni checks replication status locally via 127.0.0.1
         - host    replication replicator  127.0.0.1/32         trust
         - host    replication replicator  192.168.8.0/24       scram-sha-256
         - host    all         all         192.168.8.0/24       scram-sha-256
@@ -674,7 +673,6 @@ bootstrap:
       pg_hba:
         - local   all         all                              trust
         - host    all         all         127.0.0.1/32         trust
-        # Required: Patroni checks replication status locally via 127.0.0.1
         - host    replication replicator  127.0.0.1/32         trust
         - host    replication replicator  192.168.8.0/24       scram-sha-256
         - host    all         all         192.168.8.0/24       scram-sha-256
