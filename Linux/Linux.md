@@ -934,10 +934,28 @@ chmod 0600 ~/.pgpass
 
 # My Stuff
 
-Fast download
+
 ```bash
-alias dltor='aria2c -x 16 -s 16 --seed-time=0 --dir=$HOME/Downloads $HOME/Downloads/downloadlist.txt && rm $HOME/Downloads/downloadlist.txt'
+alias open='xdg-open'
+alias update='sudo apt update'
+alias upgrade='sudo apt upgrade'
+alias app='sudo apt install -y'
+alias run='sudo systemctl'
+#alias dltor='aria2c -x 16 -s 16 --seed-time=0 --dir=$HOME/Downloads $HOME/Downloads/downloadlist.txt && rm $HOME/Downloads/downloadlist.txt'
+alias dltor='aria2c -x 16 -s 16 --seed-time=0 --dir=$HOME/Downloads/movies $HOME/Downloads/torrents/*.torrent && rm $HOME/Downloads/torrents/*.torrent'
+alias dldir='cd $HOME/Downloads'
+# playlist flag   
+# -o "%(playlist_index)02d - %(title)s.%(ext)s"
+# uploader name  Artist Name - Song Title.mp3
+# -o "%(uploader)s - %(title)s.%(ext)s"
+# create dirs
+# yt-dlp -P ~/Music -o "%(uploader)s/%(title)s.%(ext)s"
+alias ytd='yt-dlp -f "bv*+ba/b" --merge-output-format mp4 --embed-metadata --embed-thumbnail -o "%(title)s.%(ext)s"'
+alias yta='yt-dlp -x --audio-format mp3 -o "%(title)s.%(ext)s"'
 ```
+
+
+
 
 Automate stuff using inotify-tools
 
@@ -1090,3 +1108,5 @@ WantedBy=default.target
 EOF
 systemctl --user daemon-reload && systemctl --user enable --now dl-sort.service
 ```
+
+

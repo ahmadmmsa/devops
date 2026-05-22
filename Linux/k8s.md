@@ -14,6 +14,10 @@
  
 ## Kubectl 
 
+Exec into the pod
+```bash
+kubectl exec -it <your-odoo-pod-name> -- /bin/bash
+```
 
 ### Apply
 
