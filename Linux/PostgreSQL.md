@@ -32,34 +32,27 @@ psql
 
 #list db's
 sudo -u postgres psql -l;
-# or
+sudo -u postgres psql -c "\l"
 sudo -u postgres psql -c "SELECT datname FROM pg_database;"
 
 # list superusers
 sudo -u postgres psql -c "SELECT rolname FROM pg_roles WHERE rolsuper = true;"
 sudo -u postgres psql -c "\du"
 
-
-sudo -u postgres psql -c "CREATE USER user WITH PASSWORD 'pass';"
-sudo -u postgres psql -c "ALTER USER user WITH PASSWORD 'pass';"
-sudo -u postgres psql -c "ALTER ROLE user CREATEDB;"
-sudo -u postgres psql -c "ALTER USER user WITH SUPERUSER;"
-
-sudo -u postgres psql -c "CREATE DATABASE dbname;"
-sudo -u postgres psql -c "DROP DATABASE dbname;"
-sudo -u postgres psql -c "ALTER DATABASE dbname OWNER TO user;"
-
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE myapp TO appuser;"
-
-
-
-#or
 sudo -u postgres createuser username
 sudo -u postgres createuser --interactive --pwprompt
+sudo -u postgres psql -c "CREATE USER user WITH PASSWORD 'pass';"
+sudo -u postgres psql -c "ALTER USER user WITH PASSWORD 'pass';"
 
 sudo -u postgres createdb dbname
+sudo -u postgres psql -c "CREATE DATABASE dbname;"
 sudo -u postgres dropdb dbname
+sudo -u postgres psql -c "DROP DATABASE dbname;"
 
+sudo -u postgres psql -c "ALTER DATABASE dbname OWNER TO user;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE myapp TO appuser;"
+sudo -u postgres psql -c "ALTER ROLE user CREATEDB;"
+sudo -u postgres psql -c "ALTER USER user WITH SUPERUSER;"
 
 
 # BACKUP & RESTORE
@@ -74,9 +67,6 @@ cat postgresql_dbname_backup.dump | sudo -u postgres pg_restore --no-owner --no-
 #Prevents restoring access privileges --no-privileges
 pg_restore --no-owner --no-privileges -d your_database_name your_dump_file.dump
 ```
-
-
-
 
 unset password for postres
 ```bash
@@ -95,7 +85,6 @@ ALTER USER postgres WITH PASSWORD NULL;
 
 
 allow host to connect
-
 ```bash
 sudo nano /etc/postgresql/18/main/pg_hba.conf
 
@@ -131,7 +120,6 @@ to connecto from host must have postgresql Client
 ```bash
 psql -h 192.168.8.70 -U username -d postgres
 ```
-
 
 
 other examples

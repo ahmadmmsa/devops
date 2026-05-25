@@ -869,6 +869,9 @@ sudo journalctl -u patroni -f
 
 ```bash
 patronictl -c /etc/patroni/patroni.yml list
+# -W watch
+# -t timestamp
+patronictl -c /etc/patroni/patroni.yml list -W -t
 ```
 
 Expected output:
