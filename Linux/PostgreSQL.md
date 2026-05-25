@@ -68,7 +68,7 @@ cat postgresql_dbname_backup.dump | sudo -u postgres pg_restore --no-owner --no-
 pg_restore --no-owner --no-privileges -d your_database_name your_dump_file.dump
 ```
 
-unset password for postres
+unset password for postgres
 ```bash
 sudo nano /etc/postgresql/18/main/pg_hba.conf
 # replace scram-sha-256 with peer 
