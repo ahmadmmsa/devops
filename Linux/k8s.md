@@ -249,15 +249,7 @@ kubeadm token create --print-join-command
 ## Install CNI 
 
 
-```bash
-# Prevent NetworkManager from managing Calico interfaces (run on ALL nodes)
-sudo mkdir -p /etc/NetworkManager/conf.d/
-cat <<EOF | sudo tee /etc/NetworkManager/conf.d/calico.conf
-[keyfile]
-unmanaged-devices=interface-name:cali*;interface-name:tunl*;interface-name:vxlan.calico;interface-name:vxlan-v6.calico;interface-name:wireguard.cali;interface-name:wg-v6.cali
-EOF
-sudo systemctl reload NetworkManager 2>/dev/null || true
-```
+
 
 ```bash
 sudo kubeadm init \
@@ -326,6 +318,16 @@ kubectl run test1 --image=busybox --rm -it --restart=Never -- \
 cat /etc/cni/net.d/10-calico.conflist
 ```
 
+Optional
+```bash
+# Prevent NetworkManager from managing Calico interfaces (run on ALL nodes)
+sudo mkdir -p /etc/NetworkManager/conf.d/
+cat <<EOF | sudo tee /etc/NetworkManager/conf.d/calico.conf
+[keyfile]
+unmanaged-devices=interface-name:cali*;interface-name:tunl*;interface-name:vxlan.calico;interface-name:vxlan-v6.calico;interface-name:wireguard.cali;interface-name:wg-v6.cali
+EOF
+sudo systemctl reload NetworkManager 2>/dev/null || true
+```
 <br>
 
 ## Bad or Conflicting IP pool
