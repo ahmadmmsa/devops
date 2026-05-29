@@ -260,17 +260,10 @@ sudo systemctl reload NetworkManager 2>/dev/null || true
 ```
 
 ```bash
-# Calico's default IPAM pool is 192.168.0.0/16
-# If your LAN uses that range, change it to e.g. 10.244.0.0/16
 sudo kubeadm init \
   --kubernetes-version=1.30.0 \
-  --pod-network-cidr=192.168.0.0/16 \
+  --pod-network-cidr=10.244.0.0/16 \
   --node-name=$(hostname -s)
-
-# Set up kubeconfig
-mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
 
 ```bash
@@ -293,40 +286,28 @@ kubectl create -f custom-resources.yaml
 ```
 
 ```bash
-# Watch all Calico pods come up (takes 2-3 minutes)
-watch kubectl get pods -n calico-system
-
-# Expected output when healthy:
-# calico-kube-controllers-xxx   1/1   Running
-# calico-node-xxx               1/1   Running   (one per node)
-# calico-typha-xxx              1/1   Running
-
-# Check node readiness
-kubectl get nodes
-
-# Verify the tigera-operator itself
-kubectl get pods -n tigera-operator
-```
-
-```bash
 # Install calicoctl matching your Calico version
-curl -L https://github.com/projectcalico/calico/releases/download/v3.30.5/calicoctl-linux-amd64 \
-  -o /usr/local/bin/calicoctl
-chmod +x /usr/local/bin/calicoctl
+curl -L https://github.com/projectcalico/calico/releases/download/v3.30.5/calicoctl-linux-amd64 -o calicoctl
+chmod +x calicoctl
+sudo mv calicoctl /usr/local/bin/
 
-# Verify version matches cluster
-calicoctl version
 
-# Check node status
-calicoctl node status
-
-# List IP pools
-calicoctl get ippool -o wide
 ```
 
 Verify
 
 ```bash
+# Monitor & Verify
+watch kubectl get pods -n calico-system
+kubectl get pods -n tigera-operator
+
+# Verify version matches cluster
+calicoctl version
+# Check node status
+calicoctl node status
+# List IP pools
+calicoctl get ippool -o wide
+
 # Nodes should be Ready
 kubectl get nodes -o wide
 
@@ -343,9 +324,6 @@ kubectl run test1 --image=busybox --rm -it --restart=Never -- \
 
 # Check CNI config was written correctly
 cat /etc/cni/net.d/10-calico.conflist
-
-# Check BGP peer status
-calicoctl node status
 ```
 
 <br>
@@ -389,13 +367,20 @@ calicoctl delete ippool new-ipv4-ippool
 
 <br><br>
 
+# Production Controllers
+
+- Ingress Controller: Ingress-NGINX (industry standard for bare metal/general use) or Cilium/Envoy based gateways to handle external traffic routing, SSL termination, and path-based routing.
+
+- Cert-Manager: Automates the issuance and renewal of TLS certificates from Let's Encrypt or private HashiCorp Vault instances using HTTP-01 or DNS-01 challenges.
+
+- Prometheus Operator (kube-prometheus-stack): Deploys Prometheus, Grafana, and Alertmanager with pre-configured rules to monitor cluster metrics, control-plane health, and node resources.
+
+- Metrics Server: Provides standard resource usage metrics (kubectl top nodes, kubectl top pods) required for the Horizontal Pod Autoscaler (HPA) to function properly.
 
 
+<br>
 
-
-<br><br>
-
-## Installing a load balancer (MetalLB)
+## Bare-Metal Load Balancer (MetalLB)
 check version [github](https://github.com/metallb/metallb/releases)
 
 ```bash
@@ -456,27 +441,7 @@ MetalLB assigns an external IP behaves similar to cloud
 
 
 
-configure the insecure registry on the k8s node 
-
-
-```bash
-# Create the directory for your registry
-sudo mkdir -p /etc/containerd/certs.d/192.168.8.100:5000
-
-# Create the hosts.toml file for it
-sudo tee /etc/containerd/certs.d/192.168.8.100:5000/hosts.toml <<EOF
-server = "http://192.168.8.100:5000"
-
-[host."http://192.168.8.100:5000"]
-  capabilities = ["pull", "resolve"]
-  skip_verify = true
-EOF
-```
-
-```bash
-sudo systemctl restart containerd
-sudo systemctl status containerd
-```
+<br>
 
 
 
@@ -756,6 +721,29 @@ spec:
 <br>
 
 # Creating a Local Registry 
+
+configure local registry example 192.168.8.100
+
+```bash
+# Create the directory for your registry
+sudo mkdir -p /etc/containerd/certs.d/192.168.8.100:5000
+
+# Create the hosts.toml file for it
+sudo tee /etc/containerd/certs.d/192.168.8.100:5000/hosts.toml <<EOF
+server = "http://192.168.8.100:5000"
+
+[host."http://192.168.8.100:5000"]
+  capabilities = ["pull", "resolve"]
+  skip_verify = true
+EOF
+```
+
+```bash
+sudo systemctl restart containerd
+sudo systemctl status containerd
+```
+
+<br>
 
 Kubernetes pulls container images from a registry
 

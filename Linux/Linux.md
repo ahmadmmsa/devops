@@ -941,6 +941,9 @@ alias update='sudo apt update'
 alias upgrade='sudo apt upgrade'
 alias app='sudo apt install -y'
 alias run='sudo systemctl'
+
+alias pycache='find . -type d -name "__pycache__" -exec rm -rf {} +'
+
 #alias dltor='aria2c -x 16 -s 16 --seed-time=0 --dir=$HOME/Downloads $HOME/Downloads/downloadlist.txt && rm $HOME/Downloads/downloadlist.txt'
 alias dltor='aria2c -x 16 -s 16 --seed-time=0 --dir=$HOME/Downloads/movies $HOME/Downloads/torrents/*.torrent && rm $HOME/Downloads/torrents/*.torrent'
 alias dldir='cd $HOME/Downloads'
@@ -952,9 +955,8 @@ alias dldir='cd $HOME/Downloads'
 # yt-dlp -P ~/Music -o "%(uploader)s/%(title)s.%(ext)s"
 alias ytd='yt-dlp -f "bv*+ba/b" --merge-output-format mp4 --embed-metadata --embed-thumbnail -o "%(title)s.%(ext)s"'
 alias yta='yt-dlp -x --audio-format mp3 -o "%(title)s.%(ext)s"'
+
 ```
-
-
 
 
 Automate stuff using inotify-tools

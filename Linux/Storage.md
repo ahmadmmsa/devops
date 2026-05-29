@@ -93,6 +93,54 @@ volumes:
     driver: local
     driver_opts:
       type: nfs
+      # hard and timeout parameters. prevents the container from locking up completely if the network connection to the NFS server briefly drops.
+      # o: addr=192.168.8.70,nfsvers=4,rw,hard,timeo=600,retrans=2
       o: addr=<NFS-SERVER-IP>,nfsvers=4,rw
       device: ":/srv/odoo/filestore"
+```
+
+<br>
+
+optional: Configure Permanent Mount Settings
+
+
+```bash
+echo "192.168.8.70:/mnt/storage /mnt/odoo_data nfs rw,hard,timeo=600,retrans=2,_netdev 0 0" | sudo tee -a /etc/fstab
+sudo mount -a
+```
+
+```bash
+# verify
+df -h
+```
+
+```bash
+# rw       Read/Write
+# hard     if the connection drops, processes will wait for the server to come.
+# _netdev  Tells OS to wait until the network is fully up and running.
+# noresvport  use any available unreserved network port
+# tcp alongside vers=4 is redundant
+# nfsvers=n linux parameter, vers=n cross-platform compatibility macos,solaris,BSD.
+```
+
+docker compose yml example
+
+```yml
+services:
+  odoo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: odoo_app
+    restart: unless-stopped
+    ports:
+      - "8069:8069"   # main web UI
+      - "8071:8071"   # xmlrpc
+      - "8072:8072"   # longpolling (live chat / bus)
+    volumes:
+      - /mnt/odoo_data:/var/lib/odoo   # Points directly to the fstab mount point
+      - ./odoo.conf:/etc/odoo/odoo.conf:ro
+      - ./extra-addons:/mnt/extra-addons
+    environment:
+      - ODOO_RC=/etc/odoo/odoo.conf
 ```
