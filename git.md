@@ -45,27 +45,19 @@ git commit -m "fix: login error on empty password" \
 
 git
 ```bash
-git init
-#Initializes a new local Git repo.
-git status
-#Shows which files are changed/unstaged.
-git add .
-#Stages all changes for the next commit.
-git add <file>
-#Stages a specific file only.
-git commit -m "msg"
-#Saves your staged changes with a note.
-git log
-#Shows a history of all your commits.
-git remote add origin <url>
-#Links your local repo to GitHub.
+git init                            #Initializes a new local Git repo.
+git status                          #Shows which files are changed/unstaged.
+git add .                           #Stages all changes for the next commit.
+git add <file>                      #Stages a specific file only.
+git commit -m "msg"                 #Saves your staged changes with a note.
+git log                             #Shows a history of all your commits.
+git remote add origin <url>         #Links your local repo to GitHub.
+#Sends your local commits to GitHub.
 git push -u origin main
 git push --force
-#Sends your local commits to GitHub.
-git pull
-#Fetches & merges changes from GitHub.
-git config --global init.defaultBranch main
-#future git init will use main
+
+git pull                                    #Fetches & merges changes from GitHub.
+git config --global init.defaultBranch main #future git init will use main
 ```
 
 
