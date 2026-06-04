@@ -1,6 +1,5 @@
-# Linux Cheat Sheet
 
-## Table of Contents
+# Table of Contents
 
 -   [Package Management](#package-management)
 -   [System Information](#system-information)
@@ -21,7 +20,7 @@
 
 <br>
 
-## Package Management
+# Package Management
 
 ``` bash
 sudo apt update
@@ -36,7 +35,7 @@ snap list
 
 <br>
 
-## System Information
+# System Information
 
 ``` bash
 cat /etc/os-release
@@ -49,7 +48,7 @@ cat /proc/meminfo
 
 <br>
 
-## Networking
+# Networking
 
 Disable cloud-init networking
 ```bash
@@ -172,13 +171,11 @@ sysctl -p
 
 <br>
 
-## SSH
+# SSH
 
 
 ```bash
 ssh-keygen -t ed25519 -C "user"
-```
-```bash
 # Generates: 
 # id_ed25519      private key
 # id_ed25519.pub  public key
@@ -217,46 +214,50 @@ Verify SSH configuration
 nano /etc/ssh/sshd_config
 ```
 
-find
-
 ```bash
+# find
+# prohibit-password = key-based root login allowed, 
+# password login blocked (recommended)
 PermitRootLogin prohibit-password
 PubkeyAuthentication yes
-```
 
-prohibit-password = key-based root login allowed, password login blocked (recommended)
-if changes are made
-
-```bash
 sudo systemctl reload sshd
 ```
 
 <br>
 
-## Firewall
+# Firewall
 
 ``` bash
-ufw allow 22/tcp
-```
-``` bash
-ufw allow 5432/tcp
-```
-``` bash
-ufw status numbered
-```
-``` bash
-ufw delete 3
-```
-``` bash
 ufw status verbose
-```
-``` bash
+# List rules & delete
+ufw status numbered
+ufw delete 3
+# allow ports
+ufw allow 22/tcp
+ufw allow 5432/tcp
+# Blocking a Specific IP Address
+ufw deny from 203.0.113.50
+# Disables UFW and resets to default factory rules
+sudo ufw reset
+
+iptables -L
+# list riles & delete
+iptables -L INPUT --line-numbers -n
+iptables -D INPUT 3
+# allow ports
+iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+iptables -A INPUT -p tcp --dport 5432 -j ACCEPT
+# blocking an ip
+iptables -A INPUT -s 203.0.113.50 -j DROP
+
+
 journalctl -xe | grep ufw
 ```
 
 <br>
 
-## Processes
+# Processes
 
 ```bash
 # minimalist view
@@ -304,7 +305,39 @@ snap list
 
 <br>
 
-## Find & Grep
+# Systemctl
+
+Shows only active (running) units
+``` bash
+systemctl list-units --state running
+```
+
+``` bash
+systemctl list-units --all --type=service --no-pager
+# --type=service only services
+# --all include inactive + failed
+# --no-pager print everything directly
+```
+
+Lists all installed unit files on disk
+
+``` bash
+systemctl list-unit-files --no-pager
+# includes services that: are not currently loaded, have never been started
+```
+
+``` bash
+# Check what’s running
+systemctl list-units --state=running
+# Check if something failed
+systemctl list-units --failed
+# Check if a service is enabled at boot
+systemctl is-enabled nginx
+```
+
+<br>
+
+# Find & Grep
 
 ```bash
 # "/"  Every file on the hard drive.
@@ -464,10 +497,10 @@ awk -F: '/keyword/ {print $1, $5}' file | sort | column -t
 
 <br>
 
-## Disk & Memory
+# Disk & Memory
 
-system's disk space usage
 ``` bash
+# DiskFree
 df -ahT --total
 # -a All
 # -h Human readable
@@ -476,6 +509,7 @@ df -ahT --total
 ```
 
 ```bash
+# DiskUsage
 du -sh /var/log/*
 # -a count all file and directories
 # -s summarize
@@ -484,27 +518,50 @@ du -sh /var/log/*
 ```
 
 ```bash
+# ListBlockDevices
+lsblk
+# list view of all connected storage devices
+
+# view & manage paratitions
+sudo fdisk -l
+sudo fdisk /dev/sda
+# n: Create a new partition.
+# d: Delete a partition.
+# t: Change a partition type (e.g., to an EFI System or Linux swap).
+# w: Write the changes to the disk and exit.
+# q: Quit without saving any changes
+```
+
+```bash
 # Show memory and swap usage
 free
 # finds Executable, config, and docs.
 whereis app
-# Show which app will be run by default
-which app
 ```
 
-Tip: "shortcut" by adding an alias
 
 ```bash
-source ~/.bashrc
+# file system table
+cat /etc/fstab
+# what to mount and rules to apply during system startup
 ```
 
 ```bash
+# file system consistency check
+sudo umount /dev/sdb1
+sudo fsck -n /dev/sdb1
+# -n Read-Only Check
+# -p safe, automatic repairs do not require user intervention
+```
+
+```bash
+# Tip: adding an alias in ~/.bashrc
 alias dft='df -ahT --total'
 ```
 
 <br>
 
-## Compression
+# Compression
 
 ``` bash
 # Compress
@@ -587,7 +644,7 @@ tar -czpf backup.tar.gz /etc/
 
 <br>
 
-## File Listing
+# File Listing
 
 ``` bash
 ls -a
@@ -605,39 +662,7 @@ ls -a
 
 <br>
 
-## Systemctl
-
-Shows only active (running) units
-``` bash
-systemctl list-units --state running
-```
-
-``` bash
-systemctl list-units --all --type=service --no-pager
-# --type=service only services
-# --all include inactive + failed
-# --no-pager print everything directly
-```
-
-Lists all installed unit files on disk
-
-``` bash
-systemctl list-unit-files --no-pager
-# includes services that: are not currently loaded, have never been started
-```
-
-``` bash
-# Check what’s running
-systemctl list-units --state=running
-# Check if something failed
-systemctl list-units --failed
-# Check if a service is enabled at boot
-systemctl is-enabled nginx
-```
-
-<br>
-
-## Users
+# Users
 
 basic commands
 
@@ -776,7 +801,7 @@ openssl passwd -6 "yourpasswordhere"
 
 <br>
 
-## Groups
+# Groups
 
 list groups from file
 ``` bash
@@ -806,22 +831,35 @@ groups username
 ``` bash
 groupadd webmasters
 # audo assign GID
-
 groupadd -r sysadmins
 # -r (--system) Flag
 # It chooses a Group ID (GID) from the system range. 
 # regular groups usually start at GID 1000. 
 # System groups use a lower range (typically 100–999).
-
 groupadd -g 2000 dbadmin
 # -g GID --gid
 # Forces the group to have a specific ID number.
 # for Matching GIDs across multiple servers.
 ```
 
+```bash
+# to view folder group access
+getfacl /path/to/folder
+# to grant permissions to a specific group
+setfacl -m g:group_name:rwx /path/to/folder
+# to set default permissions for future files/folders
+setfacl -d -m g:group_name:rwx /path/to/folder
+# to view folder group access
+getfacl /path/to/folder
+# to remove a specific group's permissions
+setfacl -x g:group_name /path/to/folder
+# to remove all ACL permissions from a folder
+setfacl -b /path/to/folder
+```
+
 <br>
 
-## Cron Jobs
+# Cron Jobs
 
 ``` bash
 # Edit

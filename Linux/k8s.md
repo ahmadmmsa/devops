@@ -1,13 +1,14 @@
-# Kubernetes workflow
 
-# Table of Contents
+## Table of Contents
 - [Installation](##Installation)
+- [Init Control Plane & join command](#initialize-control-plane)
+- [Installing CNI](#installing-a-cni)
+- [Production Controllers](#production-controllers)
+- - [Load Balance](#bare-metal-load-balancer-metallb)
+- - [Ingress NGINX](#nginx-ingress-controller)
+- [Storage & PVC](#nfs)
 - [Creating a Local Registry](#creating-a-local-registry)
 - [DockerHub](#dockerhub-workflow)
-- [worker join cmd](#control-plane-join-command)
-- [init control plane](#initialize-control-plane)
-- [Storage & PVC](#nfs)
-
 
 
 <br>
@@ -105,12 +106,7 @@ kubectl delete ns <namespace_name>
 kubectl delete pvc --all
 ```
 
-
-
-
 <br>
-
-
 
 
 ## Installation
@@ -241,15 +237,11 @@ kubeadm token create --print-join-command
 >Copy returned command and run on worker node
 
 
-
 <br><br>
  
  ----
 
-## Install CNI 
-
-
-
+## installing a CNI 
 
 ```bash
 sudo kubeadm init \
@@ -261,9 +253,6 @@ sudo kubeadm init \
 ```bash
 # Install the Tigera Operator (v3.30 for K8s 1.30)
 kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.30.5/manifests/tigera-operator.yaml
-
-# Verify the operator is running
-kubectl get pods -n tigera-operator
 
 # Download the custom resources manifest
 curl -O https://raw.githubusercontent.com/projectcalico/calico/v3.30.5/manifests/custom-resources.yaml
@@ -278,107 +267,56 @@ kubectl create -f custom-resources.yaml
 ```
 
 ```bash
-# Install calicoctl matching your Calico version
+# Install calicoctl matching Calico version
 curl -L https://github.com/projectcalico/calico/releases/download/v3.30.5/calicoctl-linux-amd64 -o calicoctl
 chmod +x calicoctl
 sudo mv calicoctl /usr/local/bin/
-
-
 ```
 
-Verify
 
 ```bash
 # Monitor & Verify
 watch kubectl get pods -n calico-system
 kubectl get pods -n tigera-operator
 
-# Verify version matches cluster
-calicoctl version
-# Check node status
-calicoctl node status
-# List IP pools
-calicoctl get ippool -o wide
-
-# Nodes should be Ready
-kubectl get nodes -o wide
-
-# All system pods running
-kubectl get pods -A
-
-# Confirm Calico version in use
-kubectl get pods -n calico-system -l k8s-app=calico-node \
-  -o jsonpath='{.items[0].spec.containers[0].image}'
+calicoctl version               # Verify version matches cluster
+calicoctl node status           # Check node status
+calicoctl get ippool -o wide    # List IP pools
 
 # Test pod-to-pod networking
 kubectl run test1 --image=busybox --rm -it --restart=Never -- \
   wget -qO- http://kubernetes.default.svc.cluster.local
-
 # Check CNI config was written correctly
 cat /etc/cni/net.d/10-calico.conflist
 ```
 
-Optional
-```bash
-# Prevent NetworkManager from managing Calico interfaces (run on ALL nodes)
-sudo mkdir -p /etc/NetworkManager/conf.d/
-cat <<EOF | sudo tee /etc/NetworkManager/conf.d/calico.conf
-[keyfile]
-unmanaged-devices=interface-name:cali*;interface-name:tunl*;interface-name:vxlan.calico;interface-name:vxlan-v6.calico;interface-name:wireguard.cali;interface-name:wg-v6.cali
-EOF
-sudo systemctl reload NetworkManager 2>/dev/null || true
-```
-<br>
-
-## Bad or Conflicting IP pool
-
-Create a new IP pool
-
-```bash
-cat <<EOF | kubectl apply -f -
-apiVersion: crd.projectcalico.org/v1
-kind: IPPool
-metadata:
-  name: correct-ipv4-ippool
-spec:
-  cidr: 10.244.0.0/16
-  ipipMode: Always
-  natOutgoing: true
-  disabled: false
-EOF
-```
-Disable the bad pool (don't delete yet)
-
-```bash
-calicoctl patch ippool new-ipv4-ippool -p '{"spec":{"disabled":true}}'
-```
-Restart
-```bash
-kubectl rollout restart deployment odoo-deployment
-```
-verify
-
-```bash
-kubectl get pods -o wide
-```
-
-delete the bad pool:
-```bash
-calicoctl delete ippool new-ipv4-ippool
-```
-
 <br><br>
 
-# Production Controllers
+## Production Controllers & APIs
 
-- Ingress Controller: Ingress-NGINX (industry standard for bare metal/general use) or Cilium/Envoy based gateways to handle external traffic routing, SSL termination, and path-based routing.
 
 - Cert-Manager: Automates the issuance and renewal of TLS certificates from Let's Encrypt or private HashiCorp Vault instances using HTTP-01 or DNS-01 challenges.
 
 - Prometheus Operator (kube-prometheus-stack): Deploys Prometheus, Grafana, and Alertmanager with pre-configured rules to monitor cluster metrics, control-plane health, and node resources.
 
-- Metrics Server: Provides standard resource usage metrics (kubectl top nodes, kubectl top pods) required for the Horizontal Pod Autoscaler (HPA) to function properly.
+<br>
 
+
+## Metrics Server
+
+```bash
+kubectl apply -f \
+https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+```
+
+```bash
+kubectl get pods -n kube-system | grep metrics
+```
+
+```bash
+kubectl top nodes
+kubectl get pods
+```
 
 <br>
 
@@ -440,16 +378,7 @@ kubectl patch svc ingress-nginx-controller -n ingress-nginx -p '{"spec": {"type"
 ```
 MetalLB assigns an external IP behaves similar to cloud
 
-
-
-
 <br>
-
-
-
-
-
-
 
 # NFS
 
@@ -465,8 +394,6 @@ sudo apt install -y nfs-common
 ```
 
 <br>
-
-
 
 ```bash
 sudo mkdir -p /srv/odoo/filestore
@@ -498,13 +425,10 @@ showmount -e 192.168.8.100
 ```
 > /srv/odoo/filestore 192.168.8.0/24
 
-
 <br>
 
+### Install NFS CSI Driver
 
-
-
-Install NFS CSI Driver
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/v4.11.0/deploy/install-driver.sh
 ```
@@ -517,9 +441,7 @@ kubectl get pods -n kube-system | grep nfs
 <br>
 
 
-
 ## dynamic provisioner nfs-csi
-
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -722,7 +644,7 @@ spec:
 
 <br>
 
-# Creating a Local Registry 
+## Creating a Local Registry 
 
 configure local registry example 192.168.8.100
 
@@ -842,3 +764,41 @@ sudo systemctl restart containerd
 ```
 
 
+<br>
+
+## Bad or Conflicting IP pool
+
+Create a new IP pool
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: crd.projectcalico.org/v1
+kind: IPPool
+metadata:
+  name: correct-ipv4-ippool
+spec:
+  cidr: 10.244.0.0/16
+  ipipMode: Always
+  natOutgoing: true
+  disabled: false
+EOF
+```
+Disable the bad pool (don't delete yet)
+
+```bash
+calicoctl patch ippool new-ipv4-ippool -p '{"spec":{"disabled":true}}'
+```
+Restart
+```bash
+kubectl rollout restart deployment odoo-deployment
+```
+verify
+
+```bash
+kubectl get pods -o wide
+```
+
+delete the bad pool:
+```bash
+calicoctl delete ippool new-ipv4-ippool
+```
