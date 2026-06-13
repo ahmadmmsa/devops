@@ -802,3 +802,11 @@ delete the bad pool:
 ```bash
 calicoctl delete ippool new-ipv4-ippool
 ```
+
+
+
+Force an OS Reboot to UEFI
+```bash
+# on login screen > ctrl+f3
+systemctl reboot --firmware-setup
+```

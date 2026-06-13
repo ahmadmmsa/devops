@@ -1,110 +1,166 @@
 
 
+- [Network](#network)
+- [qemu-img commands](#qemu-img-commands)
+- [virt-customize commands](#virt-customize-commands)
+- [Automate Vm creation](#automate-vm-creation)
+- [other](#other)
 
-Standard stable libvirt stack:
+
+## virsh commands
+
+```bash
+virsh list                  # active/running
+virsh list --all            # all VMs
+virsh net-list --all        # list network profiles
+
+virsh start <vm_name>
+virsh shutdown <vm_name>
+virsh reboot <vm-name>
+virsh destroy <vm_name>
+virsh suspend <vm_name>
+virsh resume <vm_name>
+
+virsh autostart <vm_name>               #start automatically
+virsh autostart --disable <vm_name>     # to disable
+
+# Delete
+# list all the block devices (vhds,CD-ROM,ISOs) attached
+# dom "domain", blklist "block device list"
+virsh domblklist <vm_name>
+# Deletes registration/config XML profile
+virsh undefine <vm_name>
+# remove all boot drives and disks for that vm
+virsh undefine <vm_name> --remove-all-storage
+virsh undefine <vm-name> --remove-all-storage --snapshots-metadata
+# Delete the physical file
+rm /var/lib/libvirt/images/vm_name.qcow2
+
+```
+
+get a cloud image:
+```bash
+aria2c -x 16 -s 16 https://*.img
+```
+ - https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
+- https://cloud-images.ubuntu.com/releases/26.04/release/ubuntu-26.04-server-cloudimg-amd64.img
+- https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
+- https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud.latest.x86_64.qcow2
+- https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2
+- https://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2
+
+
+# install
+
+stable libvirt stack:
 ```bash
 sudo apt install ovmf qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients bridge-utils virt-manager cloud-image-utils libguestfs-tools osinfo-db libosinfo-bin -y
 ```
 
-add your user to libvirt:
+add user to libvirt:
 ```bash
 sudo usermod -aG libvirt $USER
 newgrp libvirt
 ```
-
-verify:
-```bash
-virsh list --all
-```
-
---------------------
-
-Bridged networking on Ubuntu + libvirt gives your VMs real LAN IPs
-
-Check interface first:
-```bash
-ip link
-```
-Look for something like:
-enp3s0
-eth0
-ens33
-
-
-
-NetworkManager method
-
-
-2. Create bridge br0
-```bash
-sudo nmcli connection add type bridge ifname br0 con-name br0
-```
-
-3. Assign IP method (DHCP recommended for homelab)
-```bash
-sudo nmcli connection modify br0 ipv4.method auto
-sudo nmcli connection modify br0 ipv6.method auto
-```
-
-4. Attach your physical NIC to the bridge
-
-disable auto IP on NIC:
-```bash
-sudo nmcli connection modify enp4s0 ipv4.method disabled
-sudo nmcli connection modify enp4s0 ipv6.method ignore
-```
-
-enslave it to bridge:
-```bash
-sudo nmcli connection add type bridge-slave ifname enp4s0 master br0
-```
-Bring everything up & Verify:
-```bash
-sudo nmcli connection up br0
-sudo nmcli connection up bridge-slave-enp4s0
-```
-
-```bash
-ip a show br0
-```
-
 <br>
 
-Connect libvirt to the bridge
-1. open virt-manager
-When creating VM:
-NIC → “Bridge device”
-Source: br0
+# Network
 
-2. edit default network (virsh / XML)
+## use libvirt Default bridge (virbr0)
+
 ```bash
+sudo virsh net-start default
+sudo virsh net-autostart default
+```
+> and in virt-install use the flag --network network=default 
+
+## Creat a Bridge using networkmanager(desktop) optional
+```bash
+#Check interface Look for: enp3s0, eth0, ens33
+ip link
+#Create bridge br0
+sudo nmcli connection add type bridge ifname br0 con-name br0
+#Assign IP method (DHCP recommended for homelab)
+sudo nmcli connection modify br0 ipv4.method auto
+sudo nmcli connection modify br0 ipv6.method auto
+#Attach your physical NIC to the bridge
+#disable auto IP on NIC
+sudo nmcli connection modify enp4s0 ipv4.method disabled
+sudo nmcli connection modify enp4s0 ipv6.method ignore
+#enslave it to bridge
+sudo nmcli connection add type bridge-slave ifname enp4s0 master br0
+#Bring everything up & Verify:
+sudo nmcli connection up br0
+sudo nmcli connection up bridge-slave-enp4s0
+ip a show br0
+```
+```bash
+#edit default network
 sudo virsh net-edit default
 ```
-
-create VM NIC like:
+create VM NIC:
 ```xml
 <interface type='bridge'>
   <source bridge='br0'/>
   <model type='virtio'/>
 </interface>
 ```
-
-check connection
 ```bash
+#check connection
 nmcli connection show
 ```
 
-<br>
+## Create a Network Definition for libvirt (optional)
 
-get a cloud image:
 ```bash
-aria2c -x 16 -s 16 https://cloud-images.ubuntu.com/releases/resolute/release-20260421/ubuntu-26.04-server-cloudimg-amd64.img
+cat <<EOF > /tmp/bridge.xml
+<network>
+  <name>br0</name>
+  <forward mode="bridge"/>
+  <bridge name="br0"/>
+</network>
+EOF
+```
+custom isolated network:
+
+```xml
+<network>
+  <name>custom-isolated-net</name>
+  <bridge name='virbr10'/>
+  <ip address='10.10.10.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='10.10.10.100' end='10.10.10.200'/>
+    </dhcp>
+  </ip>
+</network>
+```
+internet access <forward mode='nat'/>
+```xml
+<network>
+  <name>custom-public-net</name>
+  <forward mode='nat'/> <bridge name='virbr10'/>
+  <ip address='10.10.10.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='10.10.10.100' end='10.10.10.200'/>
+    </dhcp>
+  </ip>
+</network>
+```
+```bash
+# Define the network from the XML file
+sudo virsh net-define /tmp/bridge.xml
+# Start the network
+sudo virsh net-start br0
+# Configure the network to start automatically when the host boots
+sudo virsh net-autostart br0
+# virefy
+sudo virsh net-list --all
+
 ```
 
-create qcow2
-```bash
-qemu-img create -f qcow2 -F qcow2 -b ubuntu-26.04-server-cloudimg-amd64.img ubuntu-26.04-server.qcow2
-```
+
+
+
 
 <br>
 
@@ -277,6 +333,8 @@ EOF
 cloud-localds -v seed.iso user-data.yaml meta-data -N network-config
 ```
 
+<br>
+
 Create VM using virt-install
 
 mac assigned
@@ -299,261 +357,58 @@ virt-install \
 
 <br>
 
-## Create an isolated VM network
 
-Use libvirt NAT:
+# qemu-img commands
+
 
 ```bash
-virsh net-start default
-```
+# Create qcow2
+qemu-img create -f qcow2 -F qcow2 -b \ 
+ ubuntu-26.04-server-cloudimg-amd64.img ubuntu-26.04-server.qcow2
 
-or define custom isolated network:
+# Change img size
+qemu-img resize /var/lib/libvirt/images/vms/disk.qcow2 +20G
+#in vm run to expand partition
+sudo growpart /dev/vda 1
+sudo resize2fs /dev/vda1
+df -h /
 
-```xml
-<network>
-  <name>isolated</name>
-  <bridge name='virbr10'/>
-  <ip address='10.10.10.1' netmask='255.255.255.0'>
-    <dhcp>
-      <range start='10.10.10.100' end='10.10.10.200'/>
-    </dhcp>
-  </ip>
-</network>
+qemu-img check /var/lib/libvirt/images/vms/disk.qcow2
+
+qemu-img convert -f raw -O qcow2 ubuntu-base.img ubuntu-base.qcow2
 ```
 
 <br>
 
-## Create a SHELL script 
-
-grant file execution permissions
-```bash
-sudo chmod +x create-vm.sh
-```
-to run script
-```bash
-sudo ./create-vm.sh
-```
+# virt-customize commands
 
 ```bash
-cat <<'CREATE_NEW_VM_SCRIPT' > create-vm.sh
-#!/bin/bash
+virt-customize -a /var/lib/libvirt/images/vms/disk.qcow2 \
+  --run-command 'useradd -m -s /bin/bash admin' \
+  --run-command 'echo "admin:SecretPassword123" | chpasswd' \
+  --run-command 'usermod -aG sudo admin'
 
-# Find all .img in current directory
-SEARCH_DIRS=("." "/var/lib/libvirt/images/")
+virt-customize -a /var/lib/libvirt/images/vms/disk.qcow2 \
+  --upload /path/to/local/01-netcfg.yaml:/etc/netplan/01-netcfg.yaml
 
-mapfile -t IMG_FILES < <(
-    for dir in "${SEARCH_DIRS[@]}"; do
-        [ -d "$dir" ] && find "$dir" -maxdepth 2 -type f -name "*.img"
-    done | sort -u
-)
-
-if [ ${#IMG_FILES[@]} -eq 0 ]; then
-    echo "No base images found in current directory."
-    exit 1
-else
-    echo "Available base images:"
-    for i in "${!IMG_FILES[@]}"; do
-        echo "$((i+1))) ${IMG_FILES[$i]}"
-    done
-    read -p "Select image [1-${#IMG_FILES[@]}]: " IMG_CHOICE
-    if ! [[ "$IMG_CHOICE" =~ ^[0-9]+$ ]] || (( IMG_CHOICE < 1 || IMG_CHOICE > ${#IMG_FILES[@]} )); then
-        echo "Invalid selection."
-        exit 1
-    fi
-    VM_IMG="${IMG_FILES[$((IMG_CHOICE-1))]}"
-fi
-
-REAL_USER=${SUDO_USER:-$USER}
-ACTUAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
-DOT_SSH="$ACTUAL_HOME/.ssh"
-
-echo "Running as: $(whoami) | Original user: ${SUDO_USER:-$USER} | Home: $ACTUAL_HOME"
-read -p "Enter Username [default: sysadmin]: " USR_NAME
-USR_NAME=${USR_NAME:-sysadmin} 
-read -sp "Enter User Password: " USR_PASSWRD
-echo "" 
-read -p "Enter IP Last Octet (192.168.8.X): " IP_NUM
-read -p "Paste SSH Key (or leave blank to search/generate): " USR_SSHKEY
-
-if [ -z "$USR_SSHKEY" ]; then
-    if [ -f "$DOT_SSH/id_ed25519.pub" ]; then
-        USR_SSHKEY=$(cat "$DOT_SSH/id_ed25519.pub")
-    elif [ -f "$DOT_SSH/id_rsa.pub" ]; then
-        USR_SSHKEY=$(cat "$DOT_SSH/id_rsa.pub")
-    fi
-fi
-
-if [ -z "$USR_SSHKEY" ]; then
-    echo "No SSH key found."
-    read -p "Would you like to generate one now? (y/n): " GEN_CONFIRM
-    if [[ "$GEN_CONFIRM" =~ ^[Yy]$ ]]; then
-        echo "Choose key type:"
-        echo "1) ed25519 (Modern, recommended)"
-        echo "2) rsa (Classic, widely compatible)"
-        read -p "Selection [1-2]: " KEY_CHOICE
-        case $KEY_CHOICE in
-            2)
-                KEY_TYPE="rsa"
-                KEY_FILE="$DOT_SSH/id_rsa"
-                ;;
-            *)
-                KEY_TYPE="ed25519"
-                KEY_FILE="$DOT_SSH/id_ed25519"
-                ;;
-        esac
-        mkdir -p "$DOT_SSH"
-        chown "$REAL_USER:$REAL_USER" "$DOT_SSH"
-        chmod 700 "$DOT_SSH"
-        sudo -u "$REAL_USER" ssh-keygen -t "$KEY_TYPE" -f "$KEY_FILE" -N ""
-        USR_SSHKEY=$(cat "$KEY_FILE.pub")
-        echo "Successfully generated $KEY_TYPE key."
-    else
-        echo "Proceeding without an SSH key..."
-    fi
-fi
-
-VM_NAME="vm-$(uuidgen | tr -d '-' | cut -c1-8)"
-MAC_ADDR=$(printf '52:54:00:%02x:%02x:%02x' $((RANDOM%256)) $((RANDOM%256)) $((RANDOM%256)))
-USR_PASSWRD_HASHED=$(mkpasswd -m yescrypt "$USR_PASSWRD")
-VM_IMG="ubuntu-26.04-server-cloudimg-amd64.img"
-
-cat <<EOF > meta-data
-instance-id: $(uuidgen || echo i-abcdefg)
-local-hostname: $VM_NAME
-EOF
-
-cat <<EOF > user-data
-#cloud-config
-users:
-  - name: $USR_NAME
-    shell: /bin/bash
-    lock_passwd: false
-    passwd: "$USR_PASSWRD_HASHED"
-    sudo: "ALL=(ALL) NOPASSWD:ALL"
-    groups: users, admin
-    ssh_authorized_keys:
-      - $USR_SSHKEY
-growpart:
-  mode: auto
-  devices: ['/']
-resize_rootfs: true      
-EOF
-
-cat <<EOF > network-config
-version: 2
-renderer: networkd
-ethernets:
-  eth0: # Changed from net0 to eth0 for standard naming
-    match:
-      macaddress: $MAC_ADDR
-    set-name: eth0
-    dhcp4: no
-    addresses:
-      - 192.168.8.$IP_NUM/24
-    routes:
-      - to: default
-        via: 192.168.8.1
-    nameservers:
-      addresses: [8.8.8.8, 1.1.1.1]
-EOF
-
-
-qemu-img create -f qcow2 -F qcow2 -b "$VM_IMG" "$VM_NAME.qcow2"
-
-cloud-localds -v "$VM_NAME-seed.iso" user-data meta-data -N network-config
-
-rm -rf user-data meta-data network-config
-
-virt-install \
-  --name "$VM_NAME" \
-  --memory 2048 \
-  --vcpus 2 \
-  --disk path="./$VM_NAME.qcow2",device=disk,bus=virtio \
-  --disk path="./$VM_NAME-seed.iso",device=cdrom \
-  --network bridge=br0,mac="$MAC_ADDR" \
-  --graphics none \
-  --osinfo generic \
-  --import
-CREATE_NEW_VM_SCRIPT
-```
-<br>
-
-## virsh commands to control vms
-
-```bash
-# active/running
-virsh list
-# all VMs
-virsh list --all
+virt-customize -a /var/lib/libvirt/images/vms/disk.qcow2 \
+  --install curl,git,htop    
 ```
 
 
-Start	
-```bash
-virsh start <vm_name>
-```
 
-Shut down normally
-```bash
-virsh shutdown <vm_name>
-```
 
-Force Stop (Power Off)
-```bash
-virsh destroy	<vm_name>
-```
-
-Suspend	
-```bash
-virsh suspend <vm_name>
-```
-
-Resume	
-```bash
-virsh resume <vm_name>
-```
-start automatically on host boot up
-```bash
-virsh autostart <vm_name>
-# to disable
-virsh autostart --disable <vm_name>
-```
-
-Delete
-
-```bash
-# Locate the disk
-virsh domblklist <vm_name>
-```
-```bash
-# Deletes registration/config
-virsh undefine <vm_name>
-```
-```bash
-# Delete the physical file
-rm /var/lib/libvirt/images/vm_name.qcow2
-```
-
-or 
-
-```bash
-virsh undefine <vm_name> --remove-all-storage
-# will remove all boot drives and disks for that vm
-```
 
 <br>
 
-# Create a Script
+# Automate VM creation
 
-> set execute permission & run using sudo
 ```bash
 sudo chmod +x create-vm.sh
 ```
 ```bash
 sudo ./create-vm.sh
 ```
-
-<br>
 
 ```bash
 cat <<'CREATE_NEW_VM_SCRIPT' > create-vm.sh
@@ -656,8 +511,6 @@ echo ""
 echo "Using base image: $VM_IMG"
 
 
-
-
 # Inspect image to detect OS (filename-independent)
 echo "Inspecting image, please wait..."
 
@@ -758,7 +611,6 @@ fi
 echo "Final osinfo: $OSINFO"
 
 
-
 # User / SSH inputs
 REAL_USER=${SUDO_USER:-$USER}
 ACTUAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
@@ -840,7 +692,6 @@ if [ -z "$USR_PASSWRD_HASHED" ]; then
 fi
 
 # VM identity
-
 MAC_ADDR=$(printf '52:54:00:%02x:%02x:%02x' $((RANDOM%256)) $((RANDOM%256)) $((RANDOM%256)))
 VM_IP="192.168.8.$IP_NUM"
 VM_DISK="$VM_STORE/$VM_NAME.qcow2"
@@ -1062,22 +913,28 @@ CREATE_NEW_VM_SCRIPT
 ```
 
 
-
-
-## Change img size
+## other 
 
 ```bash
-qemu-img resize /var/lib/libvirt/images/your_vm_name.qcow2 +20G
-```
+# transfering imgages to another server
+scp -r root@192.168.8.70:/var/lib/libvirt/images/vms/ .
+# or if rsync installed on both server and client
+rsync -avz --sparse -e ssh root@192.168.8.70:/var/lib/libvirt/images/vms/ ./vms/
 
-in the vm run to expand partition
-```bash
-sudo growpart /dev/vda 1
-```
-```bash
-sudo resize2fs /dev/vda1
-```
+# allow kvm server 192.168.8.70 to route traffic using the default bridged nat
+sudo iptables -I FORWARD -o virbr0 -d 192.168.122.0/24 -j ACCEPT
 
-```bash
-df -h /
+# add route to client to connect to kvm's VMs
+sudo ip route add 192.168.122.0/24 via 192.168.8.70
+
+#port forwarding examples 192.168.8.70 kvm server
+# For SSH (Forwarding Host Port 2222 -> VM Port 22)
+# To connect: ssh user@192.168.8.70 -p 2222
+sudo iptables -t nat -A PREROUTING -p tcp --dport 2222 -j DNAT --to-destination 192.168.122.50:22
+sudo iptables -A FORWARD -p tcp -d 192.168.122.50 --dport 22 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+
+# For PostgreSQL (Forwarding Host Port 5432 -> VM Port 5432)
+# To connect: 192.168.8.70:5432
+sudo iptables -t nat -A PREROUTING -p tcp --dport 5432 -j DNAT --to-destination 192.168.122.50:5432
+sudo iptables -A FORWARD -p tcp -d 192.168.122.50 --dport 5432 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
 ```
