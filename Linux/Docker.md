@@ -65,6 +65,9 @@ docker push 192.168.8.25:5000/app-name:latest
 ## Run & Stop
 
 ```bash
+# stop & remove
+docker stop $(docker ps -q) && docker rm $(docker ps -aq)
+
 docker compose up -d           # subsequent runs (detached)
 docker compose down            # stop and remove containers
 docker compose down -v         # same + deletes volumes (careful: wipes filestore)

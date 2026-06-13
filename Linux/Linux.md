@@ -12,10 +12,10 @@
 -   [Compression](#compression)
 -   [File Listing](#file-listing)
 -   [Systemctl](#systemctl)
+-   [Logs](#logs)
 -   [Users](#users)
 -   [Groups](#groups)
 -   [Cron Jobs](#cron-jobs)
----------
 -   [My-Stuff](#my-stuff)
 
 <br>
@@ -49,6 +49,19 @@ cat /proc/meminfo
 <br>
 
 # Networking
+monitoring
+```bash
+sudo iftop    # apt install iftop
+nload         # apt install nload .. Left & Right arrow to show active interfaces
+sudo nethogs  # apt install nethogs
+
+sar -n DEV 1
+
+sudo lsof -i :80  # Find process using port
+
+netstat -tulpn    # Network statistics
+ss -tulpn         # Socket statistics
+```
 
 Disable cloud-init networking
 ```bash
@@ -151,13 +164,8 @@ wget -c file
 aria2 fast download
 
 ```bash
-sudo apt install aria2
-```
-```bash
-aria2c -x 16 -s 16 https://link
-```
-```bash
-aria2c -i uris.txt
+aria2c -x 16 -s 16 https://link       # sudo apt install aria2
+aria2c -i uris.txt                    # download multiple links from file
 ```
 
 
@@ -175,6 +183,16 @@ sysctl -p
 
 
 ```bash
+ssh -p 2222 user@hostname               # SSH with specific port
+ssh -i ~/.ssh/key.pem user@hostname     # SSH with key authentication
+ssh -L 8080:localhost:80 user@hostname  # SSH tunnel
+
+scp user@hostname:/path/file.txt /tmp/
+scp user@hostname:/path/file.txt ~/
+
+scp -r user@hostname:/var/lib/libvirt/images/vms/ .
+ssh -t user@hostname "sudo tar -cf - /path/to/secure-file.txt" | tar -xf -
+
 ssh-keygen -t ed25519 -C "user"
 # Generates: 
 # id_ed25519      private key
@@ -251,7 +269,6 @@ iptables -A INPUT -p tcp --dport 5432 -j ACCEPT
 # blocking an ip
 iptables -A INPUT -s 203.0.113.50 -j DROP
 
-
 journalctl -xe | grep ufw
 ```
 
@@ -260,35 +277,47 @@ journalctl -xe | grep ufw
 # Processes
 
 ```bash
-# minimalist view
-ps -He
-# view a detailed "tree" of all running processes
-ps -axjf
-# Show all running processes (detailed, user-friendly)
-ps -aux
-# Find process by name
-ps aux | grep nginx
-# Show top memory consumers
-ps aux --sort=-%mem | head
-# Show top CPU consumers
-ps -eo pid,ppid,cmd,%cpu --sort=-%cpu | head
-# Show all processes (full structured format)
-ps -ef
-ps -e
-# Show processes for a specific user
-ps -u root
-# Show a specific process by PID
-ps -p 1234
-# Show full-format details
-ps -f
-# Show long/low-level format
-ps -l
-# Custom output columns
-ps -eo pid,ppid,cmd,%mem,%cpu
-# Show process tree hierarchy
-ps -ef --forest
-```
+ps -He      # minimalist view
+ps -axjf    # view a detailed "tree" of all running processes
+ps -aux     # Show all running processes (detailed, user-friendly)
 
+ps aux | grep nginx           # Find process by name
+ps aux --sort=-%mem | head    # Show top memory consumers
+
+ps -u root    # Show processes for a specific user
+ps -p 1234    # Show a specific process by PID
+ps -efLh -p 1234   # Show all threads for a specific PID (h hides the extra header row)
+
+ps -e         # Show all processes (full structured format)
+ps -f         # Show full-format details
+ps -l         # Show long/low-level format
+
+ps -ef
+ps -ef --forest   # Show process tree hierarchy
+
+ps -eo pid,ppid,cmd,%cpu --sort=-%cpu | head    # Show top CPU consumers
+ps -eo pid,ppid,cmd,%mem,%cpu                   # Custom output columns
+
+pstree -p   # Show process tree
+
+# Real-Time Tracking
+watch -n 1 "ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu | head -n 20"
+watch -n 1 'df -h; echo; free -h'
+
+# CPU usage
+mpstat 1
+```
+```bash
+top   #Interactive process viewer top -u www-data
+htop  #Enhanced top needs to be installed
+```
+```bash
+pkill -f nginx
+pkill -f "python3 app.py"
+pkill -9 nginx # -9 force
+
+kill -9 1234
+```
 Lists all packages installed via Debian package manager (APT/dpkg)
 ```bash
 # ii → installed OK
@@ -302,6 +331,8 @@ Lists all installed Snap packages
 ```bash
 snap list
 ```
+
+
 
 <br>
 
@@ -333,6 +364,24 @@ systemctl list-units --state=running
 systemctl list-units --failed
 # Check if a service is enabled at boot
 systemctl is-enabled nginx
+```
+
+<br>
+
+# Logs
+
+```bash
+sudo journalctl -u nginx -f
+journalctl -f
+tail -f /var/log/nginx/access.log
+grep "ERROR" /var/log/syslog
+logrotate -f /etc/logrotate.conf
+
+# Monitor multiple log files simultaneously
+tail -f /var/log/nginx/*.log /var/log/mysql/*.log
+
+# Find and delete old log files
+find /var/log -name "*.log" -mtime +30 -delete
 ```
 
 <br>
@@ -640,6 +689,8 @@ tar -xzf backup.tar.gz -C /tmp/
 tar -tzf backup.tar.gz
 # Compress and Preserve permissions
 tar -czpf backup.tar.gz /etc/
+# backup with timestamp
+tar -czf "backup-$(date +%Y%m%d-%H%M%S).tar.gz" /important/data
 ```
 
 <br>
@@ -965,7 +1016,36 @@ chmod 0600 ~/.pgpass
 30 2 * * * /usr/bin/pg_dump -U postgres -d db_name > /backups/db_$(date +\%F).sql
 ```
 
+# Shell Script
 
+```bash
+#!/bin/bash
+# Script: system_info.sh
+# Description: Basic system information script
+set -e
+# Exit on error
+# Variables
+HOSTNAME=$(hostname)
+DATE=$(date +%Y-%m-%d)
+LOG_FILE="/var/log/system_info.log"
+# Functions
+check_disk_usage() {
+echo "=== Disk Usage ==="
+df -h | grep -v tmpfs
+}
+check_memory() {
+echo "=== Memory Usage ==="
+free -h
+}
+# Main script
+main() {
+echo "System Report for $HOSTNAME - $DATE"
+check_disk_usage
+check_memory
+}
+# Execute main function
+main "$@"
+```
 
 <br><br>
 
