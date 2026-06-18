@@ -395,8 +395,19 @@ virt-customize -a /var/lib/libvirt/images/vms/disk.qcow2 \
   --install curl,git,htop    
 ```
 
+<br>
 
+# Increase RAM and CPU
 
+```bash
+sudo virsh setmaxmem kube2 4194304 --config
+sudo virsh setmem kube2 4194304 --config
+```
+
+```bash
+sudo virsh setvcpus kube2 4 --config --maximum
+sudo virsh setvcpus kube2 4 --config
+```
 
 
 <br>

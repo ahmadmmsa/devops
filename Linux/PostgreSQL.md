@@ -54,6 +54,8 @@ sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE myapp TO appuser;"
 sudo -u postgres psql -c "ALTER ROLE user CREATEDB;"
 sudo -u postgres psql -c "ALTER USER user WITH SUPERUSER;"
 
+# list tables in a db
+sudo -u postgres psql -d dbname -c "\dt"
 
 # BACKUP & RESTORE
 sudo -u postgres pg_dump -Fc dbname > backup.dump

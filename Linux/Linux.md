@@ -43,7 +43,16 @@ uname -a
 uptime
 hostnamectl set-hostname ubuntu-server-1
 cat /proc/cpuinfo
+cat /proc/cpuinfo | grep "model name" | head -1
 cat /proc/meminfo
+
+lscpu
+lscpu | grep "Model name"
+
+sudo dmidecode -t bios
+sudo dmidecode -t memory
+
+sudo dmidecode -t processor | grep Version
 ```
 
 <br>

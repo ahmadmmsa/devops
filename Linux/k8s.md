@@ -97,6 +97,9 @@ kubectl delete all --all
  # stop and remove ALL (nuke’em)
 kubectl delete deployments --all
 
+kubectl delete deployments --all -n deployment-namespace
+kubectl delete all --all -n deployment-namespace
+
 # Find & delete with label app=my-project
 kubectl delete -l app=my-project.
 #Wipe Entire Namespace
@@ -211,10 +214,6 @@ apt-mark hold kubelet kubeadm kubectl
 ## Initialize control plane
 
 ```bash
-kubeadm init --apiserver-advertise-address=192.168.8.100 --pod-network-cidr=192.168.0.0/16
-```
- or custom range use Tigera-operator
-```bash
 kubeadm init --apiserver-advertise-address=192.168.8.100 --pod-network-cidr=10.10.0.0/16
 ```
 > other flags --node-name k8s-control --kubernetes-version 1.30
@@ -244,13 +243,6 @@ kubeadm token create --print-join-command
 ## installing a CNI 
 
 ```bash
-sudo kubeadm init \
-  --kubernetes-version=1.30.0 \
-  --pod-network-cidr=10.244.0.0/16 \
-  --node-name=$(hostname -s)
-```
-
-```bash
 # Install the Tigera Operator (v3.30 for K8s 1.30)
 kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.30.5/manifests/tigera-operator.yaml
 
@@ -259,7 +251,7 @@ curl -O https://raw.githubusercontent.com/projectcalico/calico/v3.30.5/manifests
 ```
 
 ```bash
-sed -i 's|192.168.0.0/16|10.244.0.0/16|g' custom-resources.yaml
+sed -i 's|192.168.0.0/16|10.10.0.0/16|g' custom-resources.yaml
 ```
 
 ```bash
@@ -591,177 +583,6 @@ securityContext:
 ```
 
 
-
-
-
-
-<br>
-
-## Dockerhub workflow
-
-from the control plane
-```bash
-docker login
-docker build -t johndoe/backend:latest .
-docker push johndoe/backend:latest
-```
-example:
-```YAML
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: my-app-name
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: my-app-name
-  template:
-    metadata:
-      labels:
-        app: my-app-name
-    spec:
-      containers:
-      - name: my-app-name
-        image: dockerhub-username/dockerhub-image:latest
-        ports:
-        - containerPort: 3001
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: my-app-name
-spec:
-  type: NodePort
-  selector:
-    app: my-app-name
-  ports:
-  - port: 3001
-    targetPort: 3001
-
-```
-
-
-<br>
-
-## Creating a Local Registry 
-
-configure local registry example 192.168.8.100
-
-```bash
-# Create the directory for your registry
-sudo mkdir -p /etc/containerd/certs.d/192.168.8.100:5000
-
-# Create the hosts.toml file for it
-sudo tee /etc/containerd/certs.d/192.168.8.100:5000/hosts.toml <<EOF
-server = "http://192.168.8.100:5000"
-
-[host."http://192.168.8.100:5000"]
-  capabilities = ["pull", "resolve"]
-  skip_verify = true
-EOF
-```
-
-```bash
-sudo systemctl restart containerd
-sudo systemctl status containerd
-```
-
-<br>
-
-Kubernetes pulls container images from a registry
-
-- 192.168.8.25 → Build server + private Docker registry
-- 192.168.8.100 → Kubernetes control plane
-- 192.168.8.101 → Kubernetes worker
-
- workflow:
-
-- Build image on 192.168.8.25
-- Push image to registry on 192.168.8.25:5000
-- Configure Kubernetes nodes to trust that registry
-- Reference the image in your Deployment YAML
-- Kubernetes pulls the image automatically
-
-<br>
-
-## Building and deploying
-
- on host > goto project folder build > tag & push
-```bash
-docker compose up -d --build
-```
-```bash
-docker tag app-name:latest 192.168.8.25:5000/app-name:latest
-```
-```bash
-docker push 192.168.8.25:5000/app-name:latest
-```
-<br>
-
- on k8s control plane > create YAML & apply
-
-example: deployment.yaml
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: app-name
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: app-name
-  template:
-    metadata:
-      labels:
-        app: app-name
-    spec:
-      containers:
-        - name: backend
-          image: 192.168.8.25:5000/app-name:latest
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 3000
-```
-
-```bash
-kubectl apply -f deployment.yaml
-```
-<br>
-
-## Setting up registry & Configure k8s Nodes
-
-creating Local Registry
-```bash
-sudo apt install -y docker.io docker-compose-v2 docker-buildx
-```
-
-```bash
-ufw allow 5000/tcp
-```
-
-```bash
-docker run -d --name registry -p 5000:5000 --restart unless-stopped registry:2
-```
-
-
-<br>
-
-
-Run on All k8s:
-
-```bash
-sudo mkdir -p /etc/containerd/certs.d/192.168.8.25:5000
-sudo tee /etc/containerd/certs.d/192.168.8.25:5000/hosts.toml > /dev/null <<EOF
-server = "http://192.168.8.25:5000"
-[host."http://192.168.8.25:5000"]
-  capabilities = ["pull", "resolve"]
-  skip_verify = true
-EOF
-sudo systemctl restart containerd
-```
 
 
 <br>

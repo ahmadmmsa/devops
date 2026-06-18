@@ -17,50 +17,36 @@ docker compose logs -f odoo  # follow logs
 # List all images
 docker images
 docker images | grep my-app
-```
-```bash
+# List containers
 docker compose ps   # see what's running
 docker ps           # List running containers with ports
 docker ps -aq       # lists all container IDs (running & stopped)
 sudo ss -tulpn | grep docker   # Show Docker-related listening ports
-```
-show with filters
-```bash
-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
-```
+# List Volumes
+docker volume ls
 
-```bash
+# show with filters
+docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+
 docker ps -q | xargs -I {} docker inspect -f \
 '{{.Name}} | {{.Config.Image}} | IP={{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}} | Ports={{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{(index $conf 0).HostIp}}:{{(index $conf 0).HostPort}} {{end}}' {}
-```
 
-```bash
 docker inspect -f '{{.Name}} -> {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q)
 ```
-
-<br>
 
 ## Build
 
 ```bash
 docker compose up -d --build   # first time (builds the image)
-```
-```bash
+
 docker build -t quran-api:latest -t quran-api:1.0.0 --no-cache .
 docker build --network host -t my-app/backend:latest .
 docker build -t my-app:1.0 .
-```
 
-tag & push to registry
-
-```bash
+# tag & push to registry
 docker tag app-name:latest 192.168.8.25:5000/app-name:latest
-```
-```bash
 docker push 192.168.8.25:5000/app-name:latest
 ```
-
-<br>
 
 ## Run & Stop
 
@@ -75,13 +61,10 @@ docker compose down -v         # same + deletes volumes (careful: wipes filestor
 docker compose stop          # stop containers but don't remove them
 docker compose start         # start them back up after stop
 docker compose restart       # restart containers
-```
-```bash
+
 docker run --env-file .env -p 8000:8000 --name quran-api quran-api:latest
 docker run -d --env-file .env -p 8000:8000 --name quran-api quran-api:latest  # run -d detached
 ```
-
-<br>
 
 ## Remove
 
@@ -95,6 +78,13 @@ docker rm -f container-id           # force remove a running container
 docker image prune                # Remove all unused images
 docker system prune -a --volumes  # remove anonymous volumes
 docker system prune -a            # removes all stopped containers
+
+# list containers and volumes mounted to them
+docker ps -a --format '{{ .Names }} - {{ .Mounts }}'
+
+docker volume rm <volume_name>    # removes a volume
+docker volume prune -f            # remove all unused volumes
+docker volume rm $(docker volume ls -q)   # nuke all images
 ```
 
 ## other stuff
