@@ -20,17 +20,17 @@ dive user/app                    # interactive layer explorer
 
 ## List
 ```bash
-# List all images
 docker images
 docker images | grep my-app
-# List containers
-docker compose ps   # see what's running
-docker ps           # List running containers with ports
-docker ps -aq       # lists all container IDs (running & stopped)
-sudo ss -tulpn | grep docker   # Show Docker-related listening ports
-# List Volumes
-docker volume ls
 
+docker compose ps   # see what's running
+docker ps           # running containers with ports
+docker ps -aq       # all container IDs (running & stopped)
+
+docker volume ls    # List Volumes
+docker ps -a --format '{{ .Names }} - {{ .Mounts }}' # volumes mounted to container
+
+sudo ss -tulpn | grep docker   # Show Docker-related listening ports
 # show with filters
 docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
 
@@ -79,22 +79,18 @@ docker run --network backend db
 ## Remove
 
 ```bash
-docker rmi my-app:latest            # Remove an image
-docker rm --force $(docker ps -aq)  # force remove all containers
-docker rmi -f $(docker images -q)   # Remove all images
-docker rm $(docker ps -aq)          # remove all containers
-docker rm -f container-id           # force remove a running container
+docker rm -f container-id     # remove container
+docker rmi -f image-id        # remove image
+docker volume rm volume-id    # remove volume
 
-docker image prune                # Remove all unused images
+docker rm -f $(docker ps -aq)             # all containers
+docker rmi -f $(docker images -q)         # all images
+docker volume rm $(docker volume ls -q)   # all volumes
+
+docker image prune                # remove all unused images
 docker system prune -a --volumes  # remove anonymous volumes
 docker system prune -a            # removes all stopped containers
-
-# list containers and volumes mounted to them
-docker ps -a --format '{{ .Names }} - {{ .Mounts }}'
-
-docker volume rm <volume_name>    # removes a volume
 docker volume prune -f            # remove all unused volumes
-docker volume rm $(docker volume ls -q)   # nuke all volumes
 
 # prune aggressively
 docker system prune -af --volumes
@@ -103,11 +99,8 @@ docker builder prune -af
 
 ## Save & Load
 ```bash
-# portable image file
-# Save image to a file
-docker save -o my-api.tar my-api:latest
-# Load it back on another machine
-docker load -i my-api.tar
+docker save -o my-api.tar my-api:latest   # Save image to a file
+docker load -i my-api.tar                 # Load it back on another machine
 ```
 
 ## SWARM
@@ -144,8 +137,6 @@ docker swarm leave
 docker swarm leave --force
 
 docker node rm [node name 1] [node name 2]
-
-
 ```
 
 
