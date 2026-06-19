@@ -94,7 +94,7 @@ docker ps -a --format '{{ .Names }} - {{ .Mounts }}'
 
 docker volume rm <volume_name>    # removes a volume
 docker volume prune -f            # remove all unused volumes
-docker volume rm $(docker volume ls -q)   # nuke all images
+docker volume rm $(docker volume ls -q)   # nuke all volumes
 
 # prune aggressively
 docker system prune -af --volumes
