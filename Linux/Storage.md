@@ -3,8 +3,131 @@
 
 
 
+
+
+# NFS (Network File System)
+if you require POSIX-compliant file mounting
+
+```bash
+# Update package lists and install the NFS server daemon
+sudo apt update
+sudo apt install -y nfs-kernel-server
+
+# Create the directory you want to share
+sudo mkdir -p /mnt/nfs_share
+
+# Remove restrictive permissions so client machines can read/write
+sudo chown nobody:nogroup /mnt/nfs_share
+sudo chmod 777 /mnt/nfs_share
+
+# Append the export configuration (Replace 192.168.8.0/24 with actual client subnet)
+echo "/mnt/nfs_share 192.168.8.0/24(rw,sync,no_subtree_check)" | sudo tee -a /etc/exports
+
+# Apply export configuration
+sudo exportfs -a
+
+# Restart and enable the service to persist across reboots
+sudo systemctl restart nfs-kernel-server
+sudo systemctl enable nfs-kernel-server
+```
+
+### Configuring Permanent Mount /etc/fstab
+
+```bash
+echo "192.168.8.70:/mnt/storage /mnt/odoo_data nfs rw,hard,timeo=600,retrans=2,_netdev 0 0" | sudo tee -a /etc/fstab
+sudo mount -a
+```
+```bash
+# rw       Read/Write
+# hard     if the connection drops, processes will wait for the server to come.
+# _netdev  Tells OS to wait until the network is fully up and running.
+# noresvport  use any available unreserved network port
+# tcp alongside vers=4 is redundant
+# nfsvers=n linux parameter, vers=n cross-platform compatibility macos,solaris,BSD.
+
+# verify
+df -h
+```
+
+```yml
+# setup volume with server ip
+services:
+  web:
+    image: odoo:19.0
+    container_name: odoo_app
+    ports:
+      - "8069:8069"
+    volumes:
+      - odoo-filestore:/var/lib/odoo
+      - ./odoo.conf:/etc/odoo/odoo.conf
+      - ./extra-addons:/mnt/extra-addons
+volumes:
+  odoo-filestore:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=<NFS-SERVER-IP>,nfsvers=4,rw
+      device: ":/srv/odoo/filestore"
+
+# hard and timeout parameters. 
+# prevents the container from locking if connection to NFS server drops.
+# o: addr=192.168.8.70,nfsvers=4,rw,hard,timeo=600,retrans=2
+
+
+# setup volume using the Permanent Mount in /etc/fstab
+services:
+  web:
+    image: odoo:19.0
+    container_name: odoo_app
+    ports:
+      - "8069:8069"
+    volumes:
+      - /mnt/odoo_data:/var/lib/odoo
+      - ./odoo.conf:/etc/odoo/odoo.conf:ro
+      - ./extra-addons:/mnt/extra-addons
+```
+
+<br><br>
+
+
+# Object Storage
+
+## [MinIO](#minio-1)
+Advantages: 
+* Perfect 1:1 AWS S3 API match; 
+* gorgeous, powerful admin UI; 
+* enterprise-grade security features.
+
+Disadvantages: 
+* Heavy on CPU/RAM; 
+* strict AGPLv3 license; 
+* rigid, complex drive scaling; 
+* chokes on millions of tiny files.
+
+## [SeaweedFS](#seaweedfs-432)
+Advantages: 
+* Blazing fast for millions of small files; 
+* highly permissive Apache 2.0 license; 
+* flexible, on-the-fly drive scaling.
+
+Disadvantages: 
+*  Complex architecture (requires managing separate Masters, Volume servers, and Filers); 
+*  messy documentation.
+
+## [Garage](#garage-v2x)
+Advantages: 
+* Ultra-lightweight (runs on 20MB RAM); 
+* masterless architecture with zero central coordination; 
+* built for syncing across cheap, geographically distributed nodes.
+
+Disadvantages: 
+* Bare-bones S3 feature set; 
+* command-line only (no official UI); 
+* not designed for large enterprise or petabyte-scale data centers.
+
+<br>
+
 # MinIO
-the industry standard for self-hosted, S3-compatible object storage.
 
 Prerequisites:
 ```bash
@@ -40,200 +163,17 @@ web console at http://<your-server-ip>:9001 to create buckets and manage access 
 
 
 
-<br>
+<br><br>
 
-# NFS (Network File System)
-if you require POSIX-compliant file mounting
 
-```bash
-# Update package lists and install the NFS server daemon
-sudo apt update
-sudo apt install -y nfs-kernel-server
-
-# Create the directory you want to share
-sudo mkdir -p /mnt/nfs_share
-
-# Remove restrictive permissions so client machines can read/write
-sudo chown nobody:nogroup /mnt/nfs_share
-sudo chmod 777 /mnt/nfs_share
-
-# Append the export configuration (Replace 192.168.8.0/24 with actual client subnet)
-echo "/mnt/nfs_share 192.168.8.0/24(rw,sync,no_subtree_check)" | sudo tee -a /etc/exports
-
-# Apply export configuration
-sudo exportfs -a
-
-# Restart and enable the service to persist across reboots
-sudo systemctl restart nfs-kernel-server
-sudo systemctl enable nfs-kernel-server
-```
-
-docker compose example
-
-```yml
-services:
-  odoo:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: odoo_app
-    restart: unless-stopped
-    ports:
-      - "8069:8069"   # main web UI
-      - "8071:8071"   # xmlrpc
-      - "8072:8072"   # longpolling (live chat / bus)
-    volumes:
-      - odoo-filestore:/var/lib/odoo
-      - ./odoo.conf:/etc/odoo/odoo.conf:ro
-      - ./extra-addons:/mnt/extra-addons
-    environment:
-      - ODOO_RC=/etc/odoo/odoo.conf
-volumes:
-  odoo-filestore:
-    driver: local
-    driver_opts:
-      type: nfs
-      # hard and timeout parameters. prevents the container from locking up completely if the network connection to the NFS server briefly drops.
-      # o: addr=192.168.8.70,nfsvers=4,rw,hard,timeo=600,retrans=2
-      o: addr=<NFS-SERVER-IP>,nfsvers=4,rw
-      device: ":/srv/odoo/filestore"
-```
-
-<br>
-
-optional: Configure Permanent Mount Settings
-
+# Garage v2.x
 
 ```bash
-echo "192.168.8.70:/mnt/storage /mnt/odoo_data nfs rw,hard,timeo=600,retrans=2,_netdev 0 0" | sudo tee -a /etc/fstab
-sudo mount -a
+sudo useradd --system --home /var/lib/garage --shell /usr/sbin/nologin garage
+sudo mkdir -p /etc/garage /var/lib/garage/meta /var/lib/garage/data
+sudo chown -R garage:garage /var/lib/garage
 ```
-
-```bash
-# verify
-df -h
-```
-
-```bash
-# rw       Read/Write
-# hard     if the connection drops, processes will wait for the server to come.
-# _netdev  Tells OS to wait until the network is fully up and running.
-# noresvport  use any available unreserved network port
-# tcp alongside vers=4 is redundant
-# nfsvers=n linux parameter, vers=n cross-platform compatibility macos,solaris,BSD.
-```
-
-docker compose yml example
-
-```yml
-services:
-  odoo:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: odoo_app
-    restart: unless-stopped
-    ports:
-      - "8069:8069"   # main web UI
-      - "8071:8071"   # xmlrpc
-      - "8072:8072"   # longpolling (live chat / bus)
-    volumes:
-      - /mnt/odoo_data:/var/lib/odoo   # Points directly to the fstab mount point
-      - ./odoo.conf:/etc/odoo/odoo.conf:ro
-      - ./extra-addons:/mnt/extra-addons
-    environment:
-      - ODOO_RC=/etc/odoo/odoo.conf
-```
-
-
-
-
-# Object Storage Testing Lab (Ubuntu 24.04 LTS)
-
-Last reviewed: June 2026
-
-## Purpose
-
-This document provides hardened single-node test installations for:
-
-* Garage (v2.x)
-* SeaweedFS (v4.32)
-
-The goal is:
-
-* Ubuntu 24.04 compatibility
-* Non-root services
-* Systemd hardening
-* Basic firewalling
-* Local S3 testing
-
----
-
-# 1. Common Preparation
-
-Update system:
-
-```bash
-sudo apt-get update
-sudo apt-get upgrade -y
-```
-
-Install required packages:
-
-```bash
-sudo apt-get install -y \
-  curl \
-  wget \
-  tar \
-  unzip \
-  openssl \
-  ufw
-```
-
-Enable firewall:
-
-```bash
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow ssh
-sudo ufw enable
-```
-
-Verify:
-
-```bash
-sudo ufw status verbose
-```
-
----
-
-# 2. Garage v2.x
-
-## Create Service User
-
-```bash
-sudo useradd \
-  --system \
-  --home /var/lib/garage \
-  --shell /usr/sbin/nologin \
-  garage
-```
-
-## Create Directories
-
-```bash
-sudo mkdir -p \
-  /etc/garage \
-  /var/lib/garage/meta \
-  /var/lib/garage/data
-
-sudo chown -R garage:garage \
-  /var/lib/garage
-```
-
-## Download Garage
-
-Replace VERSION as needed.
+Download Garage
 
 ```bash
 VERSION="2.3.0"
@@ -242,39 +182,25 @@ curl -LO \
 https://garagehq.deuxfleurs.fr/_releases/${VERSION}/x86_64-unknown-linux-musl/garage
 
 chmod +x garage
-
 sudo mv garage /usr/local/bin/
-```
 
-Verify:
-
-```bash
 garage --version
 ```
 
-## Generate RPC Secret
 
 ```bash
+# Generate RPC Secret & Save the generated value
 openssl rand -hex 32
+
+# expected:
+# 4b0b8ab8b02f4f7f4b6b6c1d5d38d9d68f90e3c1e2d6cbf7d15db43c7dcb8fa8
 ```
 
-Save the generated value.
-
-Example:
-
-```text
-4b0b8ab8b02f4f7f4b6b6c1d5d38d9d68f90e3c1e2d6cbf7d15db43c7dcb8fa8
-```
-
-## Garage Configuration
-
-Create:
+## Configuration
 
 ```bash
 sudo nano /etc/garage/garage.toml
 ```
-
-Contents:
 
 ```toml
 metadata_dir = "/var/lib/garage/meta"
@@ -298,16 +224,12 @@ bind_addr = "127.0.0.1:3902"
 root_domain = ".web.local"
 ```
 
-Set ownership:
-
 ```bash
 sudo chown root:garage /etc/garage/garage.toml
 sudo chmod 640 /etc/garage/garage.toml
 ```
 
 ## Systemd Service
-
-Create:
 
 ```bash
 sudo nano /etc/systemd/system/garage.service
@@ -349,65 +271,43 @@ RestrictNamespaces=true
 WantedBy=multi-user.target
 ```
 
-Enable:
-
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now garage
-```
 
-Check:
-
-```bash
 systemctl status garage
-```
 
-Logs:
-
-```bash
 journalctl -u garage -f
 ```
 
 ## Firewall
 
-Allow S3 endpoint:
-
 ```bash
 sudo ufw allow 3900/tcp
-```
 
-Verify:
-
-```bash
+# Verify:
 ss -tulpn | grep garage
 ```
-
----
-
-# 3. SeaweedFS 4.32
-
-## Create Service User
+## Testing
 
 ```bash
-sudo useradd \
-  --system \
-  --home /var/lib/seaweedfs \
-  --shell /usr/sbin/nologin \
-  seaweedfs
+curl http://localhost:3900
+
+# Expected:
+# <ListAllMyBucketsResult>
 ```
 
-## Create Directories
+<br><br>
+
+# SeaweedFS 4.32
 
 ```bash
-sudo mkdir -p \
-  /var/lib/seaweedfs/master \
-  /var/lib/seaweedfs/volume
-
-sudo chown -R seaweedfs:seaweedfs \
-  /var/lib/seaweedfs
+sudo useradd --system --home /var/lib/seaweedfs --shell /usr/sbin/nologin seaweedfs
+sudo mkdir -p /var/lib/seaweedfs/master /var/lib/seaweedfs/volume
+sudo chown -R seaweedfs:seaweedfs /var/lib/seaweedfs
 ```
 
-## Download SeaweedFS
+Download SeaweedFS
 
 ```bash
 SEAWEED_VERSION="4.32"
@@ -420,21 +320,13 @@ Extract:
 
 ```bash
 tar -xzf linux_amd64.tar.gz weed
-
 sudo mv weed /usr/local/bin/
-
 rm linux_amd64.tar.gz
-```
 
-Verify:
-
-```bash
 weed version
 ```
 
 ## Systemd Service
-
-Create:
 
 ```bash
 sudo nano /etc/systemd/system/seaweedfs.service
@@ -482,124 +374,37 @@ RestrictNamespaces=true
 WantedBy=multi-user.target
 ```
 
-Enable:
-
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now seaweedfs
-```
 
-Verify:
-
-```bash
 systemctl status seaweedfs
-```
 
-Logs:
-
-```bash
 journalctl -u seaweedfs -f
 ```
 
 ## Firewall
 
-Allow S3 API:
-
 ```bash
 sudo ufw allow 8333/tcp
-```
 
-Optional administration ports:
-
-```bash
+# Optional administration ports:
 sudo ufw allow 9333/tcp
 sudo ufw allow 8080/tcp
-```
 
-Verify:
-
-```bash
+# Verify:
 ss -tulpn | grep weed
 ```
 
----
 
-# 4. Functional Testing
-
-## Garage
-
-Check API:
-
-```bash
-curl http://localhost:3900
-```
-
-Expected:
-
-```xml
-<ListAllMyBucketsResult>
-```
-
-or S3 authentication response.
-
----
-
-## SeaweedFS
-
-Check S3 endpoint:
+## Testing
 
 ```bash
 curl http://localhost:8333
 ```
 
-Check master:
-
 ```bash
 curl http://localhost:9333/dir/status
 ```
 
----
 
-# 5. Resource Comparison
-
-## Garage
-
-Advantages:
-
-* Very lightweight
-* Small memory footprint
-* Simple deployment
-* Excellent homelab option
-
-Disadvantages:
-
-* Smaller ecosystem
-* More manual administration
-
----
-
-## SeaweedFS
-
-Advantages:
-
-* Scales extremely well
-* Fast small-object workloads
-* Mature distributed architecture
-
-Disadvantages:
-
-* More moving parts
-* More operational complexity
-
----
-
-# 6. Recommendation
-
-For Ubuntu 24.04 single-node S3 testing:
-
-1. Garage
-2. SeaweedFS
-
-For homelab and small production environments, Garage is usually the simplest modern replacement for MinIO.
-
-For larger distributed clusters, SeaweedFS is generally the better long-term platform.
