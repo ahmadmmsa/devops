@@ -5,6 +5,9 @@
 ```bash
 sudo apt install -y docker.io docker-compose-v2 docker-buildx
 ```
+```bash
+sudo usermod -aG docker $USER
+```
 
 ## Inspect / debug 
 ```bash
