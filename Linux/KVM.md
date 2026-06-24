@@ -24,6 +24,14 @@ virsh resume <vm_name>
 virsh autostart <vm_name>               #start automatically
 virsh autostart --disable <vm_name>     # to disable
 
+# start all vms
+for vm in $(virsh list --inactive --name); do virsh start "$vm"; done
+# shutdown all running vms
+for vm in $(virsh list --state-running --name); do virsh shutdown "$vm"; done
+# reboot all vms
+for vm in $(virsh list --state-running --name); do virsh reboot "$vm"; done
+
+
 # Delete
 # list all the block devices (vhds,CD-ROM,ISOs) attached
 # dom "domain", blklist "block device list"
