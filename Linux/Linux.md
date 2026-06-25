@@ -18,7 +18,7 @@
 -   [Cron Jobs](#cron-jobs)
 -   [My-Stuff](#my-stuff)
 
-<br>
+---
 
 # Package Management
 
@@ -32,9 +32,7 @@ sudo apt remove <pkg>
 dpkg --list
 snap list
 ```
-
-<br>
-
+---
 # System Information
 
 ``` bash
@@ -54,9 +52,7 @@ sudo dmidecode -t memory
 
 sudo dmidecode -t processor | grep Version
 ```
-
-<br>
-
+---
 # Networking
 monitoring
 ```bash
@@ -177,7 +173,6 @@ aria2c -x 16 -s 16 https://link       # sudo apt install aria2
 aria2c -i uris.txt                    # download multiple links from file
 ```
 
-
 Disable IPv6
 ``` bash
 nano /etc/sysctl.conf
@@ -185,22 +180,25 @@ nano /etc/sysctl.conf
 ```
 sysctl -p
 ```
-
-<br>
-
+---
 # SSH
 
-
+scp & rsync
 ```bash
-ssh -p 2222 user@hostname               # SSH with specific port
-ssh -i ~/.ssh/key.pem user@hostname     # SSH with key authentication
-ssh -L 8080:localhost:80 user@hostname  # SSH tunnel
-
+rsync -a --rsync-path="sudo rsync" extra-addons/ \
+  user@hostname:/srv/odoo/default/odoo-addons-pvc/pvc-d60c8985-5af3-43b8-bd28-e2ba2801e594/
+  
 scp user@hostname:/path/file.txt /tmp/
 scp user@hostname:/path/file.txt ~/
 
 scp -r user@hostname:/var/lib/libvirt/images/vms/ .
 ssh -t user@hostname "sudo tar -cf - /path/to/secure-file.txt" | tar -xf -
+```
+
+```bash
+ssh -p 2222 user@hostname               # SSH with specific port
+ssh -i ~/.ssh/key.pem user@hostname     # SSH with key authentication
+ssh -L 8080:localhost:80 user@hostname  # SSH tunnel
 
 ssh-keygen -t ed25519 -C "user"
 # Generates: 
@@ -250,9 +248,7 @@ PubkeyAuthentication yes
 
 sudo systemctl reload sshd
 ```
-
-<br>
-
+---
 # Firewall
 
 ``` bash
@@ -280,8 +276,7 @@ iptables -A INPUT -s 203.0.113.50 -j DROP
 
 journalctl -xe | grep ufw
 ```
-
-<br>
+---
 
 # Processes
 
@@ -341,9 +336,7 @@ Lists all installed Snap packages
 snap list
 ```
 
-
-
-<br>
+---
 
 # Systemctl
 
@@ -375,7 +368,7 @@ systemctl list-units --failed
 systemctl is-enabled nginx
 ```
 
-<br>
+---
 
 # Logs
 
@@ -393,7 +386,7 @@ tail -f /var/log/nginx/*.log /var/log/mysql/*.log
 find /var/log -name "*.log" -mtime +30 -delete
 ```
 
-<br>
+---
 
 # Find & Grep
 
@@ -553,7 +546,7 @@ grep error log.txt | cut -d: -f1,5 | sort | column -t -s:
 awk -F: '/keyword/ {print $1, $5}' file | sort | column -t
 ```
 
-<br>
+---
 
 # Disk & Memory
 
@@ -617,7 +610,7 @@ sudo fsck -n /dev/sdb1
 alias dft='df -ahT --total'
 ```
 
-<br>
+---
 
 # Compression
 
@@ -702,7 +695,7 @@ tar -czpf backup.tar.gz /etc/
 tar -czf "backup-$(date +%Y%m%d-%H%M%S).tar.gz" /important/data
 ```
 
-<br>
+---
 
 # File Listing
 
@@ -720,7 +713,7 @@ ls -a
 # -lt sort by ctime
 ```
 
-<br>
+---
 
 # Users
 
@@ -856,10 +849,7 @@ mkpasswd -m yescrypt
 # SHA-512 
 openssl passwd -6 "yourpasswordhere"
 ```
-
-
-
-<br>
+---
 
 # Groups
 
@@ -917,7 +907,7 @@ setfacl -x g:group_name /path/to/folder
 setfacl -b /path/to/folder
 ```
 
-<br>
+---
 
 # Cron Jobs
 
@@ -1024,7 +1014,7 @@ chmod 0600 ~/.pgpass
 ```bash
 30 2 * * * /usr/bin/pg_dump -U postgres -d db_name > /backups/db_$(date +\%F).sql
 ```
-
+---
 # Shell Script
 
 ```bash
@@ -1056,11 +1046,9 @@ check_memory
 main "$@"
 ```
 
-<br><br>
-
+---
 
 # My Stuff
-
 
 ```bash
 alias open='xdg-open'

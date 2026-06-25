@@ -54,14 +54,13 @@ kubectl get pods -o json
 ```
 
 ```bash
-# scans every single namespace in the cluster
-kubectl get pods -A
-# Keeps the session open and waits for changes
-kubectl get pods -w
-# Filters the list based on labels.
-kubectl get pods -l app=backend
-# Label Columns. -L
-kubectl get pods -L app,env
+kubectl get pods -A               # scans every single namespace in the cluster
+kubectl get pods -w               # Keeps the session open and waits for changes
+kubectl get pods -l app=backend   # Filters the list based on labels.
+kubectl get pods -L app,env       # Label Columns. -L
+```
+```bash
+kubectl get pvc odoo-filestore-pvc -o jsonpath='{.spec.volumeName}'
 ```
 
 ```bash
@@ -115,7 +114,13 @@ kubectl delete pvc --all
 # remove all storageclasses
 kubectl delete sc --all
 ```
+### Rollout
 
+```bash
+kubectl rollout restart deploy/odoo
+kubectl rollout history deploy/odoo     # list revisions
+kubectl rollout undo deploy/odoo        # roll back to 6f9dc7474 if a deploy breaks
+```
 
 ## Installation
 
@@ -434,7 +439,8 @@ kubectl delete storageclass nfs-csi && kubectl apply -f new-nfs-csi.yaml
 
 install
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/v4.11.0/deploy/install-driver.sh
+curl -skSL https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/v4.11.0/deploy/install-driver.sh | bash -s v4.11.0 --
+
 ```
 
 ## dynamic provisioner nfs-csi
