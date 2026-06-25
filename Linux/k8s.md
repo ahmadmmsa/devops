@@ -6,7 +6,8 @@
 - [Production Controllers](#production-controllers)
 - - [Load Balance](#bare-metal-load-balancer-metallb)
 - - [Ingress NGINX](#nginx-ingress-controller)
-- [Storage & PVC](#nfs)
+- [NFS](#nfs)
+- - [NFS CSI Driver](#nfs-csi-driver)
 - [Creating a Local Registry](#creating-a-local-registry)
 - [DockerHub](#dockerhub-workflow)
 
@@ -39,6 +40,7 @@ kubectl diff -f .
 ### Get
 
 ```bash
+kubectl get sc
 kubectl get svc
 kubectl get all
 kubectl get pods
@@ -94,7 +96,7 @@ kubectl delete pods --all
 kubectl delete pods --all --force --grace-period=0
 # keep ConfigMaps, Secrets, Ingresses, (PVCs)
 kubectl delete all --all
- # stop and remove ALL (nuke’em)
+# stop and remove ALL (nuke’em)
 kubectl delete deployments --all
 
 kubectl delete deployments --all -n deployment-namespace
@@ -102,14 +104,17 @@ kubectl delete all --all -n deployment-namespace
 
 # Find & delete with label app=my-project
 kubectl delete -l app=my-project.
-#Wipe Entire Namespace
+# Wipe Entire Namespace
 kubectl delete ns <namespace_name>
 
+# forve remove a pvc
+kubectl delete pvc odoo-filestore-pvc --grace-period=0 --force
 # remove all Presestance Volume Claims
 kubectl delete pvc --all
-```
 
-<br>
+# remove all storageclasses
+kubectl delete sc --all
+```
 
 
 ## Installation
@@ -374,64 +379,63 @@ MetalLB assigns an external IP behaves similar to cloud
 
 # NFS
 
-only on k8s control plane
+
 ```bash
+# only on k8s control plane
 sudo apt install -y nfs-kernel-server nfs-common
-```
-
-on all k8s nodes
-
-```bash
+# on all k8s nodes
 sudo apt install -y nfs-common
 ```
 
-<br>
-
 ```bash
-sudo mkdir -p /srv/odoo/filestore
-sudo chown 1001:1001 /srv/odoo/filestore
-sudo chmod 777 /srv/odoo/filestore
+sudo mkdir -p /srv/storage
+sudo chown nobody:nogroup /srv/storage
+sudo chmod 777 /srv/storage
 ```
 
 ```bash
 nano /etc/exports
-```
 
-```bash
-/srv/odoo/filestore 192.168.8.0/24(rw,sync,no_subtree_check,no_root_squash)
-```
 
-```bash
+/srv/storage 192.168.8.0/24(rw,sync,no_subtree_check,no_root_squash)
 # allows non-root ports to connect
-/srv/odoo/filestore 192.168.8.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)
+/srv/storage 192.168.8.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)
+/srv/odoo/filestore    192.168.8.0/24(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001)
+/srv/postgres/backups  192.168.8.0/24(rw,sync,no_subtree_check,all_squash,anonuid=999,anongid=999)
+/srv/shared/media      192.168.8.0/24(rw,sync,no_subtree_check,root_squash)
 ```
 
 ```bash
 sudo exportfs -rav
+# -ra re-export all, apply changes
+# -v show what's actually exported + options
+
 sudo systemctl restart nfs-kernel-server
 sudo systemctl enable nfs-kernel-server
 ```
 
 ```bash
-showmount -e 192.168.8.100
+showmount -e nfs-server-ip # client view of exports
 ```
-> /srv/odoo/filestore 192.168.8.0/24
 
-<br>
 
-### Install NFS CSI Driver
+## NFS CSI Driver
 
+```bash
+#Verify installation
+kubectl get pods -n kube-system | grep nfs
+# get nfs-csi
+kubectl get storageclass nfs-csi -o yaml
+
+# replace or delete && apply
+kubectl replace --force -f new-nfs-csi.yaml
+kubectl delete storageclass nfs-csi && kubectl apply -f new-nfs-csi.yaml
+```
+
+install
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/v4.11.0/deploy/install-driver.sh
 ```
-Verify installation
-
-```bash
-kubectl get pods -n kube-system | grep nfs
-```
-
-<br>
-
 
 ## dynamic provisioner nfs-csi
 
@@ -626,8 +630,3 @@ calicoctl delete ippool new-ipv4-ippool
 
 
 
-Force an OS Reboot to UEFI
-```bash
-# on login screen > ctrl+f3
-systemctl reboot --firmware-setup
-```

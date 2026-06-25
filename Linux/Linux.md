@@ -1237,5 +1237,9 @@ WantedBy=default.target
 EOF
 systemctl --user daemon-reload && systemctl --user enable --now dl-sort.service
 ```
-
+Force an OS Reboot to UEFI
+```bash
+# on login screen > ctrl+f3
+systemctl reboot --firmware-setup
+```
 
