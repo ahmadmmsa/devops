@@ -49,8 +49,10 @@ lscpu | grep "Model name"
 
 sudo dmidecode -t bios
 sudo dmidecode -t memory
-
 sudo dmidecode -t processor | grep Version
+
+# hardware/laptop model
+cat /sys/devices/virtual/dmi/id/product_name
 ```
 ---
 # Networking
