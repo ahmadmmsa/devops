@@ -1053,6 +1053,14 @@ main "$@"
 # My Stuff
 
 ```bash
+# make Terminator the default terminal
+echo "terminator.desktop" > ~/.config/ubuntu-xdg-terminals.list
+
+# open chrome on start
+cp /usr/share/applications/google-chrome.desktop ~/.config/autostart/
+```
+
+```bash
 alias open='xdg-open'
 alias update='sudo apt update'
 alias upgrade='sudo apt upgrade'
